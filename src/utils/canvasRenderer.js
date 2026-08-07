@@ -39,6 +39,11 @@ const PRODUCT_GRADIENT_BOTTOM = '#D0EEF6';
 const PRICE_GRADIENT_TOP = '#FEFEFE';
 const PRICE_GRADIENT_BOTTOM = '#DAE4E7';
 
+// El signo + usa los mismos verdes de la placa GASTRO, pero aplicados a la
+// propia silueta del carácter (sin caja ni contorno exterior).
+const GASTRO_BADGE_BASE = '#00a900';
+const GASTRO_BADGE_BEVEL = '#00dc55';
+
 // El primer origen corresponde a public/assets/brands/kitchentools.png.
 // El segundo permite usar el mismo archivo directamente dentro de public/assets.
 const HEADER_LOGO_SOURCES = [
@@ -62,6 +67,42 @@ function applyProductRunFont(ctx, run, baseFontSize) {
   ctx.font = `800 ${fontSize}px '${fontFamily}', sans-serif`;
 }
 
+function drawBeveledPlus(ctx, x, y, baseFontSize) {
+  const metrics = ctx.measureText('+');
+  const bevelWidth = Math.max(2, Math.round(baseFontSize * 0.055));
+  const padding = bevelWidth * 3;
+  const ascent = Math.ceil(metrics.actualBoundingBoxAscent || baseFontSize);
+  const descent = Math.ceil(metrics.actualBoundingBoxDescent || baseFontSize * 0.2);
+  const glyphWidth = Math.max(1, Math.ceil(metrics.width));
+
+  const glyphCanvas = document.createElement('canvas');
+  glyphCanvas.width = glyphWidth + (padding * 2);
+  glyphCanvas.height = ascent + descent + (padding * 2);
+
+  const glyphCtx = glyphCanvas.getContext('2d');
+  glyphCtx.font = ctx.font;
+  glyphCtx.textAlign = 'left';
+  glyphCtx.textBaseline = 'alphabetic';
+
+  const localX = padding;
+  const localY = padding + ascent;
+
+  // Primero se crea la silueta sólida del signo.
+  glyphCtx.fillStyle = GASTRO_BADGE_BASE;
+  glyphCtx.fillText('+', localX, localY);
+
+  // source-atop recorta el trazo al interior de la silueta ya creada. Así el
+  // bisel ilumina el borde del carácter sin convertirse en borde exterior.
+  glyphCtx.globalCompositeOperation = 'source-atop';
+  glyphCtx.strokeStyle = GASTRO_BADGE_BEVEL;
+  glyphCtx.lineWidth = bevelWidth * 2;
+  glyphCtx.lineJoin = 'round';
+  glyphCtx.strokeText('+', localX, localY);
+
+  const targetTop = y - ascent - descent - padding;
+  ctx.drawImage(glyphCanvas, x - padding, targetTop);
+}
+
 function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
   const characters = Array.from(text);
   let cursorX = x;
@@ -73,7 +114,11 @@ function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
     };
 
     applyProductRunFont(ctx, run, baseFontSize);
-    ctx.fillText(character, cursorX, y);
+    if (character === '+') {
+      drawBeveledPlus(ctx, cursorX, y, baseFontSize);
+    } else {
+      ctx.fillText(character, cursorX, y);
+    }
     cursorX += ctx.measureText(character).width;
 
     if (index < characters.length - 1) {
@@ -116,6 +161,13 @@ function getBgScale(settings, formatKey) {
   const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
   const suffix = keyMap[formatKey] || '45';
   return settings[`bgScale_${suffix}`] || 1.0;
+}
+
+function getBrandLogoOffset(settings, formatKey, axis) {
+  const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
+  const suffix = keyMap[formatKey] || '45';
+  const value = Number(settings[`brandLogoOffset${axis}_${suffix}`]);
+  return Number.isFinite(value) ? value : 0;
 }
 
 export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLogosList) => {
@@ -291,8 +343,8 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   ctx.save();
 
   // Colores según variante
-  const badgeBgColor = isHogar ? '#fd7d00' : '#00a900';
-  const bevelColor = isHogar ? '#f8bc8b' : '#00dc55';
+  const badgeBgColor = isHogar ? '#fd7d00' : GASTRO_BADGE_BASE;
+  const bevelColor = isHogar ? '#f8bc8b' : GASTRO_BADGE_BEVEL;
 
   // Sombra exterior regulable de la placa (lado izquierdo e inferior)
   const badgeShadowIntensity = clampPercentage(settings.badgeShadowIntensity, 70);
@@ -524,8 +576,10 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
       const logoW = Math.min(targetW, badgeW * 0.9);
       const logoH = (logoImg.height / logoImg.width) * logoW;
 
-      const logoX = badgeX;
-      const logoY = logoBottomY - logoH;
+      // Posición independiente por formato. Los valores son offsets en píxeles
+      // respecto de la ubicación automática original del logo.
+      const logoX = badgeX + getBrandLogoOffset(settings, formatKey, 'X');
+      const logoY = logoBottomY - logoH + getBrandLogoOffset(settings, formatKey, 'Y');
 
       ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
       ctx.shadowBlur = 8;

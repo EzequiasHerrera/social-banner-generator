@@ -557,6 +557,51 @@ body {
   background-color: rgba(16, 185, 129, 0.15);
 }
 
+.brand-upload-drop-zone {
+  padding: 4px;
+  border: 1px dashed transparent;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.drop-zone-hint {
+  display: block;
+  margin-top: 5px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  line-height: 1.2;
+  pointer-events: none;
+}
+
+.upload-drop-zone {
+  position: relative;
+  transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.upload-drop-zone.is-dragging {
+  border-color: var(--emerald-primary);
+  background-color: rgba(16, 185, 129, 0.18);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.16);
+}
+
+.upload-drop-zone.is-dragging::after {
+  content: 'Soltá la imagen para cargarla';
+  position: absolute;
+  inset: 4px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  border-radius: 6px;
+  color: #FFFFFF;
+  background-color: rgba(5, 150, 105, 0.92);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* BACKGROUND UPLOADER */
 .checkbox-label {
   display: flex;

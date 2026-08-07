@@ -1,7 +1,21 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move } from 'lucide-react';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const isImageFile = (file) => Boolean(
+  file && (
+    file.type?.startsWith('image/') ||
+    /\.(avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(file.name || '')
+  )
+);
+
+const isBrandFile = (file) => Boolean(
+  file && (
+    ['image/png', 'image/svg+xml'].includes(file.type) ||
+    /\.(png|svg)$/i.test(file.name || '')
+  )
+);
 
 const NumericRangeControl = ({
   label,
@@ -78,10 +92,17 @@ export const ImageUploader = ({
   const fileInputRefFeed = useRef(null);
   const fileInputRefStory = useRef(null);
   const brandInputRef = useRef(null);
+  const dragDepthRef = useRef({});
+  const [activeDropZone, setActiveDropZone] = useState(null);
 
   // Manejador de carga de imagen de fondo por formato
   const handleBgUpload = (formatKey, file) => {
     if (!file) return;
+    if (!isImageFile(file)) {
+      alert('El archivo seleccionado no es una imagen compatible.');
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       const dataUrl = e.target.result;
@@ -108,8 +129,9 @@ export const ImageUploader = ({
   // Manejador de carga de nuevo logo de marca en PNG
   const handleBrandUpload = (file) => {
     if (!file) return;
-    if (file.type !== 'image/png' && !file.type.includes('png') && !file.type.includes('svg')) {
-      alert('Se recomienda subir archivos PNG con fondo transparente.');
+    if (!isBrandFile(file)) {
+      alert('El logo debe ser un archivo PNG o SVG.');
+      return;
     }
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -126,6 +148,46 @@ export const ImageUploader = ({
     };
     reader.readAsDataURL(file);
   };
+
+  const getDropZoneProps = (zoneId, onFileDrop) => ({
+    onDragEnter: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepthRef.current[zoneId] = (dragDepthRef.current[zoneId] || 0) + 1;
+      setActiveDropZone(zoneId);
+    },
+    onDragOver: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.dataTransfer.dropEffect = 'copy';
+    },
+    onDragLeave: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepthRef.current[zoneId] = Math.max(
+        0,
+        (dragDepthRef.current[zoneId] || 1) - 1
+      );
+      if (dragDepthRef.current[zoneId] === 0) {
+        setActiveDropZone((currentZone) => (
+          currentZone === zoneId ? null : currentZone
+        ));
+      }
+    },
+    onDrop: (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      dragDepthRef.current[zoneId] = 0;
+      setActiveDropZone(null);
+
+      const droppedFile = Array.from(event.dataTransfer.files || []).find(isImageFile);
+      if (!droppedFile) {
+        alert('Soltá un archivo de imagen compatible.');
+        return;
+      }
+      onFileDrop(droppedFile);
+    }
+  });
 
   // Helper para renderizar controles de posición/escala de imagen
   const BgPositionControls = ({ formatKey, label }) => {
@@ -169,6 +231,36 @@ export const ImageUploader = ({
     );
   };
 
+  const BrandLogoPositionControls = ({ formatKey, label }) => {
+    const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
+    const suffix = keyMap[formatKey];
+    const offsetX = settings[`brandLogoOffsetX_${suffix}`] || 0;
+    const offsetY = settings[`brandLogoOffsetY_${suffix}`] || 0;
+
+    return (
+      <div className="bg-position-controls">
+        <span className="position-controls-label">{label}</span>
+        <NumericRangeControl
+          label="Posición X"
+          value={offsetX}
+          min={-1200}
+          max={1200}
+          unit=" px"
+          onChange={(value) => updateSettings({ [`brandLogoOffsetX_${suffix}`]: value })}
+        />
+        <NumericRangeControl
+          label="Posición Y"
+          value={offsetY}
+          min={-1800}
+          max={1800}
+          unit=" px"
+          className="mt-3"
+          onChange={(value) => updateSettings({ [`brandLogoOffsetY_${suffix}`]: value })}
+        />
+      </div>
+    );
+  };
+
   return (
     <div className="uploader-section">
       {/* 1. SELECCIÓN Y CARGA DE MARCA */}
@@ -201,13 +293,19 @@ export const ImageUploader = ({
         </div>
 
         {/* Botón para subir nueva marca PNG */}
-        <div className="mt-3">
+        <div
+          className={`upload-drop-zone brand-upload-drop-zone mt-3 ${activeDropZone === 'brand' ? 'is-dragging' : ''}`}
+          {...getDropZoneProps('brand', handleBrandUpload)}
+        >
           <input
             type="file"
             ref={brandInputRef}
             accept="image/png,image/svg+xml"
             className="hidden"
-            onChange={(e) => handleBrandUpload(e.target.files[0])}
+            onChange={(event) => {
+              handleBrandUpload(event.target.files[0]);
+              event.target.value = '';
+            }}
           />
           <button
             type="button"
@@ -217,6 +315,20 @@ export const ImageUploader = ({
             <Plus size={16} />
             <span>Agregar nueva marca PNG</span>
           </button>
+          <span className="drop-zone-hint">o arrastrá un PNG/SVG acá</span>
+        </div>
+
+        <div className="control-card mt-3">
+          <div className="card-header">
+            <Move size={16} className="text-emerald-400" />
+            <h3>Posición Libre del Logo de Marca</h3>
+          </div>
+          <span className="helper-text">
+            Mové el logo desde su ubicación automática. Cada formato conserva su propia posición; también podés escribir el valor exacto.
+          </span>
+          <BrandLogoPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" />
+          <BrandLogoPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" />
+          <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" />
         </div>
       </div>
 
@@ -246,17 +358,23 @@ export const ImageUploader = ({
         {/* Carga de Fondos Independientes o Sincronizados */}
         {settings.syncBackgrounds ? (
           <>
-            <div className="bg-uploader-card mt-3">
+            <div
+              className={`bg-uploader-card upload-drop-zone mt-3 ${activeDropZone === 'background-global' ? 'is-dragging' : ''}`}
+              {...getDropZoneProps('background-global', (file) => handleBgUpload('4:5', file))}
+            >
               <input
                 type="file"
                 ref={fileInputRef45}
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => handleBgUpload('4:5', e.target.files[0])}
+                onChange={(event) => {
+                  handleBgUpload('4:5', event.target.files[0]);
+                  event.target.value = '';
+                }}
               />
               <div className="uploader-info">
                 <span className="uploader-title">Fondo Único Global</span>
-                <span className="uploader-desc">Se aplicará automáticamente a 4:5, FEED y STORY</span>
+                <span className="uploader-desc">Arrastrá una imagen acá · se aplicará a los 3 formatos</span>
               </div>
               <button
                 type="button"
@@ -285,17 +403,23 @@ export const ImageUploader = ({
         ) : (
           <div className="bg-uploader-grid mt-3">
             {/* 4:5 */}
-            <div className="bg-uploader-card">
+            <div
+              className={`bg-uploader-card upload-drop-zone ${activeDropZone === 'background-45' ? 'is-dragging' : ''}`}
+              {...getDropZoneProps('background-45', (file) => handleBgUpload('4:5', file))}
+            >
               <input
                 type="file"
                 ref={fileInputRef45}
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => handleBgUpload('4:5', e.target.files[0])}
+                onChange={(event) => {
+                  handleBgUpload('4:5', event.target.files[0]);
+                  event.target.value = '';
+                }}
               />
               <div className="uploader-info">
                 <span className="uploader-title">Fondo 4:5</span>
-                <span className="uploader-desc">1080 x 1350 px</span>
+                <span className="uploader-desc">1080 x 1350 px · arrastrá acá</span>
               </div>
               <button
                 type="button"
@@ -311,17 +435,23 @@ export const ImageUploader = ({
             </div>
 
             {/* FEED */}
-            <div className="bg-uploader-card mt-3">
+            <div
+              className={`bg-uploader-card upload-drop-zone mt-3 ${activeDropZone === 'background-feed' ? 'is-dragging' : ''}`}
+              {...getDropZoneProps('background-feed', (file) => handleBgUpload('FEED', file))}
+            >
               <input
                 type="file"
                 ref={fileInputRefFeed}
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => handleBgUpload('FEED', e.target.files[0])}
+                onChange={(event) => {
+                  handleBgUpload('FEED', event.target.files[0]);
+                  event.target.value = '';
+                }}
               />
               <div className="uploader-info">
                 <span className="uploader-title">Fondo FEED</span>
-                <span className="uploader-desc">1200 x 1200 px</span>
+                <span className="uploader-desc">1200 x 1200 px · arrastrá acá</span>
               </div>
               <button
                 type="button"
@@ -337,17 +467,23 @@ export const ImageUploader = ({
             </div>
 
             {/* STORY */}
-            <div className="bg-uploader-card mt-3">
+            <div
+              className={`bg-uploader-card upload-drop-zone mt-3 ${activeDropZone === 'background-story' ? 'is-dragging' : ''}`}
+              {...getDropZoneProps('background-story', (file) => handleBgUpload('STORY', file))}
+            >
               <input
                 type="file"
                 ref={fileInputRefStory}
                 accept="image/*"
                 className="hidden"
-                onChange={(e) => handleBgUpload('STORY', e.target.files[0])}
+                onChange={(event) => {
+                  handleBgUpload('STORY', event.target.files[0]);
+                  event.target.value = '';
+                }}
               />
               <div className="uploader-info">
                 <span className="uploader-title">Fondo STORY</span>
-                <span className="uploader-desc">1080 x 1920 px</span>
+                <span className="uploader-desc">1080 x 1920 px · arrastrá acá</span>
               </div>
               <button
                 type="button"

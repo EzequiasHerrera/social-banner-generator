@@ -107,6 +107,13 @@ export const DEFAULT_SETTINGS = {
   selectedBrandId: 'silcook',
   brandLogoGap: 24,              // Espaciado entre el logo de marca y el texto del producto
   brandLogoScale: 1.0,
+  // Desplazamiento libre del logo de marca, independiente por formato
+  brandLogoOffsetX_45: 0,
+  brandLogoOffsetY_45: 0,
+  brandLogoOffsetX_FEED: 0,
+  brandLogoOffsetY_FEED: 0,
+  brandLogoOffsetX_STORY: 0,
+  brandLogoOffsetY_STORY: 0,
 
   // Placa de Precio
   badgeVariant: 'GASTRO',        // 'GASTRO' o 'HOGAR'

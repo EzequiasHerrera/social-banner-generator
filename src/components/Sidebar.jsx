@@ -144,6 +144,7 @@ export const Sidebar = ({
                 />
                 <span className="helper-text">
                   * Presioná ENTER para definir cada línea. El programa no dividirá el texto ni reducirá su tamaño automáticamente.
+                  El carácter + adopta automáticamente el relleno y bisel verde de la placa GASTRO.
                 </span>
               </div>
 
