@@ -1,5 +1,72 @@
 import React, { useRef } from 'react';
-import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move, ZoomIn } from 'lucide-react';
+import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move } from 'lucide-react';
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+
+const NumericRangeControl = ({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  unit,
+  onChange,
+  className = ''
+}) => {
+  const commitValue = (rawValue) => {
+    if (rawValue === '') return;
+
+    const numericValue = Number(rawValue);
+    if (Number.isFinite(numericValue)) {
+      onChange(numericValue);
+    }
+  };
+
+  const normalizeValue = (rawValue) => {
+    const numericValue = Number(rawValue);
+    onChange(clamp(Number.isFinite(numericValue) ? numericValue : value, min, max));
+  };
+
+  return (
+    <div className={`slider-field ${className}`.trim()}>
+      <div className="slider-header">
+        <label>{label}</label>
+        <span className="slider-value">
+          {step < 1 ? Number(value).toFixed(2) : value}{unit}
+        </span>
+      </div>
+      <div className="range-number-row">
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(event) => onChange(Number(event.target.value))}
+        />
+        <div className="number-input-wrap">
+          <input
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={(event) => commitValue(event.target.value)}
+            onBlur={(event) => normalizeValue(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                normalizeValue(event.currentTarget.value);
+                event.currentTarget.blur();
+              }
+            }}
+            aria-label={`${label}: valor manual`}
+          />
+          <span>{unit}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const ImageUploader = ({
   settings,
@@ -71,46 +138,33 @@ export const ImageUploader = ({
     return (
       <div className="bg-position-controls">
         <span className="position-controls-label">{label}</span>
-        <div className="slider-field">
-          <div className="slider-header">
-            <label>Posición X</label>
-            <span className="slider-value">{offsetX} px</span>
-          </div>
-          <input
-            type="range"
-            min="-500"
-            max="500"
-            value={offsetX}
-            onChange={(e) => updateSettings({ [`bgOffsetX_${suffix}`]: Number(e.target.value) })}
-          />
-        </div>
-        <div className="slider-field mt-3">
-          <div className="slider-header">
-            <label>Posición Y</label>
-            <span className="slider-value">{offsetY} px</span>
-          </div>
-          <input
-            type="range"
-            min="-500"
-            max="500"
-            value={offsetY}
-            onChange={(e) => updateSettings({ [`bgOffsetY_${suffix}`]: Number(e.target.value) })}
-          />
-        </div>
-        <div className="slider-field mt-3">
-          <div className="slider-header">
-            <label>Escala</label>
-            <span className="slider-value">{scale.toFixed(1)}x</span>
-          </div>
-          <input
-            type="range"
-            min="0.5"
-            max="3.0"
-            step="0.1"
-            value={scale}
-            onChange={(e) => updateSettings({ [`bgScale_${suffix}`]: Number(e.target.value) })}
-          />
-        </div>
+        <NumericRangeControl
+          label="Posición X"
+          value={offsetX}
+          min={-500}
+          max={500}
+          unit=" px"
+          onChange={(value) => updateSettings({ [`bgOffsetX_${suffix}`]: value })}
+        />
+        <NumericRangeControl
+          label="Posición Y"
+          value={offsetY}
+          min={-500}
+          max={500}
+          unit=" px"
+          className="mt-3"
+          onChange={(value) => updateSettings({ [`bgOffsetY_${suffix}`]: value })}
+        />
+        <NumericRangeControl
+          label="Escala"
+          value={scale}
+          min={0.5}
+          max={3}
+          step={0.01}
+          unit="x"
+          className="mt-3"
+          onChange={(value) => updateSettings({ [`bgScale_${suffix}`]: value })}
+        />
       </div>
     );
   };
@@ -220,9 +274,12 @@ export const ImageUploader = ({
                 <Move size={16} className="text-emerald-400" />
                 <h3>Posición y Escala de Imagen</h3>
               </div>
-              <BgPositionControls formatKey="4:5" label="Todos los formatos" />
-              <BgPositionControls formatKey="FEED" label="Ajuste FEED" />
-              <BgPositionControls formatKey="STORY" label="Ajuste STORY" />
+              <span className="helper-text">
+                La imagen puede ser la misma, pero el encuadre se guarda de manera independiente en cada formato.
+              </span>
+              <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" />
+              <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" />
+              <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" />
             </div>
           </>
         ) : (
@@ -250,7 +307,7 @@ export const ImageUploader = ({
               </button>
             </div>
             <div className="control-card mt-2">
-              <BgPositionControls formatKey="4:5" label="Posición 4:5" />
+              <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" />
             </div>
 
             {/* FEED */}
@@ -276,7 +333,7 @@ export const ImageUploader = ({
               </button>
             </div>
             <div className="control-card mt-2">
-              <BgPositionControls formatKey="FEED" label="Posición FEED" />
+              <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" />
             </div>
 
             {/* STORY */}
@@ -302,7 +359,7 @@ export const ImageUploader = ({
               </button>
             </div>
             <div className="control-card mt-2">
-              <BgPositionControls formatKey="STORY" label="Posición STORY" />
+              <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" />
             </div>
           </div>
         )}
