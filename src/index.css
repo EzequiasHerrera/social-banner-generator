@@ -869,6 +869,16 @@ body {
   max-width: 100%;
 }
 
+.rendered-banner-canvas.background-draggable {
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.rendered-banner-canvas.background-draggable.is-dragging-background {
+  cursor: grabbing;
+}
+
 .canvas-card-footer {
   padding: 8px 14px;
   background-color: rgba(0, 0, 0, 0.2);

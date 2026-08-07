@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { CanvasPreview } from './components/CanvasPreview';
@@ -27,12 +27,12 @@ export function App() {
   }, [settings]);
 
   // Actualizador parcial de configuración
-  const updateSettings = (newPartialSettings) => {
+  const updateSettings = useCallback((newPartialSettings) => {
     setSettings(prev => ({
       ...prev,
       ...newPartialSettings
     }));
-  };
+  }, []);
 
   // Agregar nueva marca personalizada PNG
   const handleAddCustomBrand = (newBrand) => {
@@ -105,6 +105,7 @@ export function App() {
           settings={settings}
           brandLogos={brandLogos}
           onExportSingle={handleExportSingle}
+          updateSettings={updateSettings}
         />
       </div>
     </div>

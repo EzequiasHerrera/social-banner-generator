@@ -44,21 +44,29 @@ const PRICE_GRADIENT_BOTTOM = '#DAE4E7';
 const GASTRO_BADGE_BASE = '#00a900';
 const GASTRO_BADGE_BEVEL = '#00dc55';
 
+// El + necesita más presencia visual que las letras de CocoSharp. Se amplía
+// junto con el espacio que ocupa y se eleva levemente respecto de la línea.
+const PRODUCT_PLUS_SCALE = 1.18;
+const PRODUCT_PLUS_RAISE_EM = 0.08;
+
 // El primer origen corresponde a public/assets/brands/kitchentools.png.
 // El segundo permite usar el mismo archivo directamente dentro de public/assets.
 const HEADER_LOGO_SOURCES = [
   '/assets/brands/kitchentools.png',
   '/assets/kitchentools.png',
-  '/kitchentools.png'
+  '/kitchentools.png',
+  '/assets/brands/kitchentools.svg'
 ];
 
 // Tracking -80 en programas de diseño equivale a -0.08 em.
 const PRICE_TRACKING_EM = -80 / 1000;
 
 function applyProductRunFont(ctx, run, baseFontSize) {
-  const fontSize = run.isNumber
-    ? baseFontSize * PRODUCT_NUMBER_SCALE
-    : baseFontSize;
+  const fontSize = run.isPlus
+    ? baseFontSize * PRODUCT_PLUS_SCALE
+    : run.isNumber
+      ? baseFontSize * PRODUCT_NUMBER_SCALE
+      : baseFontSize;
 
   const fontFamily = run.isNumber
     ? PRODUCT_NUMBER_FONT
@@ -99,7 +107,8 @@ function drawBeveledPlus(ctx, x, y, baseFontSize) {
   glyphCtx.lineJoin = 'round';
   glyphCtx.strokeText('+', localX, localY);
 
-  const targetTop = y - ascent - descent - padding;
+  const raisedY = y - (baseFontSize * PRODUCT_PLUS_RAISE_EM);
+  const targetTop = raisedY - ascent - descent - padding;
   ctx.drawImage(glyphCanvas, x - padding, targetTop);
 }
 
@@ -110,7 +119,8 @@ function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
   characters.forEach((character, index) => {
     const run = {
       value: character,
-      isNumber: /^\d$/.test(character)
+      isNumber: /^\d$/.test(character),
+      isPlus: character === '+'
     };
 
     applyProductRunFont(ctx, run, baseFontSize);

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move } from 'lucide-react';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -27,18 +27,22 @@ const NumericRangeControl = ({
   onChange,
   className = ''
 }) => {
+  const [draftValue, setDraftValue] = useState(String(value));
+  const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditingRef.current) setDraftValue(String(value));
+  }, [value]);
+
   const commitValue = (rawValue) => {
-    if (rawValue === '') return;
-
     const numericValue = Number(rawValue);
-    if (Number.isFinite(numericValue)) {
-      onChange(numericValue);
-    }
-  };
-
-  const normalizeValue = (rawValue) => {
-    const numericValue = Number(rawValue);
-    onChange(clamp(Number.isFinite(numericValue) ? numericValue : value, min, max));
+    const normalizedValue = clamp(
+      rawValue !== '' && Number.isFinite(numericValue) ? numericValue : Number(value),
+      min,
+      max
+    );
+    setDraftValue(String(normalizedValue));
+    onChange(normalizedValue);
   };
 
   return (
@@ -57,6 +61,7 @@ const NumericRangeControl = ({
           step={step}
           value={value}
           onChange={(event) => onChange(Number(event.target.value))}
+          onPointerDown={(event) => event.stopPropagation()}
         />
         <div className="number-input-wrap">
           <input
@@ -64,12 +69,17 @@ const NumericRangeControl = ({
             min={min}
             max={max}
             step={step}
-            value={value}
-            onChange={(event) => commitValue(event.target.value)}
-            onBlur={(event) => normalizeValue(event.target.value)}
+            value={draftValue}
+            onFocus={() => { isEditingRef.current = true; }}
+            onChange={(event) => setDraftValue(event.target.value)}
+            onBlur={(event) => {
+              isEditingRef.current = false;
+              commitValue(event.target.value);
+            }}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
-                normalizeValue(event.currentTarget.value);
+                event.preventDefault();
+                commitValue(event.currentTarget.value);
                 event.currentTarget.blur();
               }
             }}
@@ -78,6 +88,38 @@ const NumericRangeControl = ({
           <span>{unit}</span>
         </div>
       </div>
+    </div>
+  );
+};
+
+const FORMAT_SUFFIX = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' };
+
+const BgPositionControls = ({ formatKey, label, settings, updateSettings }) => {
+  const suffix = FORMAT_SUFFIX[formatKey];
+  const offsetX = settings[`bgOffsetX_${suffix}`] ?? 0;
+  const offsetY = settings[`bgOffsetY_${suffix}`] ?? 0;
+  const scale = settings[`bgScale_${suffix}`] ?? 1;
+
+  return (
+    <div className="bg-position-controls">
+      <span className="position-controls-label">{label}</span>
+      <NumericRangeControl label="Posición X" value={offsetX} min={-500} max={500} unit=" px" onChange={(nextValue) => updateSettings({ [`bgOffsetX_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición Y" value={offsetY} min={-500} max={500} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgOffsetY_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Escala" value={scale} min={0.5} max={3} step={0.01} unit="x" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgScale_${suffix}`]: nextValue })} />
+    </div>
+  );
+};
+
+const BrandLogoPositionControls = ({ formatKey, label, settings, updateSettings }) => {
+  const suffix = FORMAT_SUFFIX[formatKey];
+  const offsetX = settings[`brandLogoOffsetX_${suffix}`] ?? 0;
+  const offsetY = settings[`brandLogoOffsetY_${suffix}`] ?? 0;
+
+  return (
+    <div className="bg-position-controls">
+      <span className="position-controls-label">{label}</span>
+      <NumericRangeControl label="Posición X" value={offsetX} min={-1200} max={1200} unit=" px" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetX_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición Y" value={offsetY} min={-1800} max={1800} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetY_${suffix}`]: nextValue })} />
     </div>
   );
 };
@@ -189,78 +231,6 @@ export const ImageUploader = ({
     }
   });
 
-  // Helper para renderizar controles de posición/escala de imagen
-  const BgPositionControls = ({ formatKey, label }) => {
-    const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
-    const suffix = keyMap[formatKey];
-    const offsetX = settings[`bgOffsetX_${suffix}`] || 0;
-    const offsetY = settings[`bgOffsetY_${suffix}`] || 0;
-    const scale = settings[`bgScale_${suffix}`] || 1.0;
-
-    return (
-      <div className="bg-position-controls">
-        <span className="position-controls-label">{label}</span>
-        <NumericRangeControl
-          label="Posición X"
-          value={offsetX}
-          min={-500}
-          max={500}
-          unit=" px"
-          onChange={(value) => updateSettings({ [`bgOffsetX_${suffix}`]: value })}
-        />
-        <NumericRangeControl
-          label="Posición Y"
-          value={offsetY}
-          min={-500}
-          max={500}
-          unit=" px"
-          className="mt-3"
-          onChange={(value) => updateSettings({ [`bgOffsetY_${suffix}`]: value })}
-        />
-        <NumericRangeControl
-          label="Escala"
-          value={scale}
-          min={0.5}
-          max={3}
-          step={0.01}
-          unit="x"
-          className="mt-3"
-          onChange={(value) => updateSettings({ [`bgScale_${suffix}`]: value })}
-        />
-      </div>
-    );
-  };
-
-  const BrandLogoPositionControls = ({ formatKey, label }) => {
-    const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
-    const suffix = keyMap[formatKey];
-    const offsetX = settings[`brandLogoOffsetX_${suffix}`] || 0;
-    const offsetY = settings[`brandLogoOffsetY_${suffix}`] || 0;
-
-    return (
-      <div className="bg-position-controls">
-        <span className="position-controls-label">{label}</span>
-        <NumericRangeControl
-          label="Posición X"
-          value={offsetX}
-          min={-1200}
-          max={1200}
-          unit=" px"
-          onChange={(value) => updateSettings({ [`brandLogoOffsetX_${suffix}`]: value })}
-        />
-        <NumericRangeControl
-          label="Posición Y"
-          value={offsetY}
-          min={-1800}
-          max={1800}
-          unit=" px"
-          className="mt-3"
-          onChange={(value) => updateSettings({ [`brandLogoOffsetY_${suffix}`]: value })}
-        />
-      </div>
-    );
-  };
-
   return (
     <div className="uploader-section">
       {/* 1. SELECCIÓN Y CARGA DE MARCA */}
@@ -326,9 +296,9 @@ export const ImageUploader = ({
           <span className="helper-text">
             Mové el logo desde su ubicación automática. Cada formato conserva su propia posición; también podés escribir el valor exacto.
           </span>
-          <BrandLogoPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" />
-          <BrandLogoPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" />
-          <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" />
+          <BrandLogoPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
+          <BrandLogoPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
+          <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
         </div>
       </div>
 
@@ -395,9 +365,9 @@ export const ImageUploader = ({
               <span className="helper-text">
                 La imagen puede ser la misma, pero el encuadre se guarda de manera independiente en cada formato.
               </span>
-              <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" />
-              <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" />
-              <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" />
+              <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
+              <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
+              <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
             </div>
           </>
         ) : (
@@ -431,7 +401,7 @@ export const ImageUploader = ({
               </button>
             </div>
             <div className="control-card mt-2">
-              <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" />
+              <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
             </div>
 
             {/* FEED */}
@@ -463,7 +433,7 @@ export const ImageUploader = ({
               </button>
             </div>
             <div className="control-card mt-2">
-              <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" />
+              <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
             </div>
 
             {/* STORY */}
@@ -495,7 +465,7 @@ export const ImageUploader = ({
               </button>
             </div>
             <div className="control-card mt-2">
-              <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" />
+              <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
             </div>
           </div>
         )}

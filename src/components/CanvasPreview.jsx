@@ -6,7 +6,8 @@ export const CanvasPreview = ({
   activeView,
   settings,
   brandLogos,
-  onExportSingle
+  onExportSingle,
+  updateSettings
 }) => {
   const [zoomLevel, setZoomLevel] = useState(0.28); // Zoom inicial optimizado para pantallas
 
@@ -52,6 +53,7 @@ export const CanvasPreview = ({
             brandLogos={brandLogos}
             onExportSingle={onExportSingle}
             zoomScale={zoomLevel}
+            updateSettings={updateSettings}
           />
         ))}
       </div>
