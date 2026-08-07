@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" width="400" height="100">
+  <defs>
+    <linearGradient id="silcookGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E2E8F0"/>
+      <stop offset="50%" stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#CBD5E1"/>
+    </linearGradient>
+    <linearGradient id="accentOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6B00"/>
+      <stop offset="100%" stop-color="#FF9E00"/>
+    </linearGradient>
+  </defs>
+  <!-- Flame Icon / Chef Hat Accent -->
+  <path d="M 35,65 C 20,65 15,45 30,30 C 35,25 45,20 40,10 C 55,20 60,35 55,45 C 65,35 60,20 70,25 C 80,35 75,65 35,65 Z" fill="url(#accentOrange)"/>
+  <!-- Brand Text -->
+  <text x="85" y="62" font-family="'Montserrat', 'Arial Black', sans-serif" font-weight="900" font-size="48" fill="url(#silcookGrad)" letter-spacing="2">SILCOOK</text>
+  <text x="88" y="82" font-family="'Inter', sans-serif" font-weight="700" font-size="14" fill="#FF9E00" letter-spacing="6">GASTRONOMÍA</text>
+</svg>

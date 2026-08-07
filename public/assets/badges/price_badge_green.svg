@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 140" width="450" height="140">
+  <defs>
+    <linearGradient id="greenBadgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981"/>
+      <stop offset="50%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="shineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0.0"/>
+    </linearGradient>
+    <filter id="badgeShadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <!-- Main Badge Box -->
+  <rect x="10" y="10" width="430" height="120" rx="16" fill="url(#greenBadgeGrad)" filter="url(#badgeShadow)" stroke="#34D399" stroke-width="3" />
+  <!-- Top Subtle Highlight / Gloss -->
+  <path d="M 12,24 C 12,17 17,12 24,12 L 426,12 C 433,12 438,17 438,24 L 438,65 C 300,65 150,55 12,65 Z" fill="url(#shineGrad)"/>
+</svg>
