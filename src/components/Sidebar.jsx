@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, ArrowUpDown, MoveHorizontal, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, ArrowUpDown, MoveHorizontal, CheckSquare, Square } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
-import { AVAILABLE_FONTS } from '../utils/defaultSettings';
 
 export const Sidebar = ({
   settings,
@@ -21,18 +20,6 @@ export const Sidebar = ({
       )}
       <span className="font-medium text-sm">{label}</span>
     </label>
-  );
-
-  // Helper para renderizar selector de fuente
-  const FontSelector = ({ value, onChange, label }) => (
-    <div className="input-field">
-      <label>{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)}>
-        {AVAILABLE_FONTS.map(f => (
-          <option key={f.id} value={f.id}>{f.name}</option>
-        ))}
-      </select>
-    </div>
   );
 
   return (
@@ -123,16 +110,20 @@ export const Sidebar = ({
                 />
               </div>
 
-              <FontSelector
-                value={settings.headerFontFamily}
-                onChange={(val) => updateSettings({ headerFontFamily: val })}
-                label="Tipografía del Encabezado"
-              />
+              <span className="helper-text">
+                * El encabezado usa siempre CocoSharp ExtraBold.
+              </span>
 
               <CheckToggle
                 checked={settings.showHeader}
                 onChange={() => updateSettings({ showHeader: !settings.showHeader })}
                 label="Mostrar Encabezado"
+              />
+
+              <CheckToggle
+                checked={settings.headerShadow !== false}
+                onChange={() => updateSettings({ headerShadow: settings.headerShadow === false })}
+                label="Encabezado con sombra"
               />
             </div>
 
@@ -146,13 +137,13 @@ export const Sidebar = ({
               <div className="input-field">
                 <label>Texto del Producto</label>
                 <textarea
-                  rows="2"
+                  rows="4"
                   value={settings.productName}
                   onChange={(e) => updateSettings({ productName: e.target.value })}
-                  placeholder="Freidora de Aire Industrial 10L"
+                  placeholder={'Freidora de Aire\nIndustrial 10L'}
                 />
                 <span className="helper-text">
-                  * El texto se ingresa libremente (mayúsculas y minúsculas). Ajusta su escala automáticamente para no superar el ancho de la placa.
+                  * Presioná ENTER para definir cada línea. El programa no dividirá el texto ni reducirá su tamaño automáticamente.
                 </span>
               </div>
 
@@ -185,11 +176,6 @@ export const Sidebar = ({
                 />
               </div>
 
-              <FontSelector
-                value={settings.productFontFamily}
-                onChange={(val) => updateSettings({ productFontFamily: val })}
-                label="Tipografía del Producto"
-              />
             </div>
 
             {/* 3. Valor de Precio */}
@@ -223,11 +209,6 @@ export const Sidebar = ({
                 />
               </div>
 
-              <FontSelector
-                value={settings.priceFontFamily}
-                onChange={(val) => updateSettings({ priceFontFamily: val })}
-                label="Tipografía del Precio"
-              />
             </div>
           </div>
         )}
@@ -282,6 +263,7 @@ export const Sidebar = ({
                   onChange={(e) => updateSettings({ brandLogoScale: Number(e.target.value) })}
                 />
               </div>
+
             </div>
 
             {/* Placa de Precio */}
@@ -335,6 +317,21 @@ export const Sidebar = ({
                   onChange={(e) => updateSettings({ badgeHeight: Number(e.target.value) })}
                 />
               </div>
+
+              <div className="slider-field mt-3">
+                <div className="slider-header">
+                  <label>Intensidad de Sombra de la Placa</label>
+                  <span className="slider-value">{settings.badgeShadowIntensity ?? 70}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={settings.badgeShadowIntensity ?? 70}
+                  onChange={(e) => updateSettings({ badgeShadowIntensity: Number(e.target.value) })}
+                />
+              </div>
             </div>
 
             {/* Gradient y Escala Global */}
@@ -349,6 +346,21 @@ export const Sidebar = ({
                 onChange={() => updateSettings({ showDarkGradient: !settings.showDarkGradient })}
                 label="Gradient Negro Inferior sobre imagen"
               />
+
+              <div className="slider-field mt-3">
+                <div className="slider-header">
+                  <label>Intensidad de Sombra del Producto</label>
+                  <span className="slider-value">{settings.textShadowIntensity ?? 80}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={settings.textShadowIntensity ?? 80}
+                  onChange={(e) => updateSettings({ textShadowIntensity: Number(e.target.value) })}
+                />
+              </div>
 
               <div className="slider-field mt-3">
                 <div className="slider-header">

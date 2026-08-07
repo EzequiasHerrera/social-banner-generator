@@ -9,7 +9,7 @@ export const CANVAS_SPECIFICATIONS = {
 
 // Carga asíncrona de imágenes para Canvas
 const loadImage = (src) => {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     if (!src) return resolve(null);
     const img = new Image();
     img.crossOrigin = 'anonymous';
@@ -22,43 +22,87 @@ const loadImage = (src) => {
   });
 };
 
-// Algoritmo para envolver texto manteniendo estricta la restricción de ancho máximo (badgeWidth)
-function wrapTextToFitWidth(ctx, text, maxWidth, initialFontSize, fontFamily) {
-  let fontSize = initialFontSize;
-  let lines = [];
-  
-  while (fontSize >= 16) {
-    ctx.font = `900 ${fontSize}px '${fontFamily}', sans-serif`;
-    const words = text.split(' ');
-    lines = [];
-    let currentLine = words[0] || '';
+const PRODUCT_TEXT_FONT = 'CocoSharp Trial Extrabold';
+const PRODUCT_NUMBER_FONT = 'Montserrat';
 
-    let exceeds = false;
-    for (let i = 1; i < words.length; i++) {
-      const word = words[i];
-      const width = ctx.measureText(currentLine + " " + word).width;
-      if (width <= maxWidth) {
-        currentLine += " " + word;
-      } else {
-        lines.push(currentLine);
-        currentLine = word;
-        // Si una sola palabra sola ya supera el ancho máximo, debemos reducir la fuente
-        if (ctx.measureText(word).width > maxWidth) {
-          exceeds = true;
-          break;
-        }
-      }
+// 78 px de texto equivalen a 83 px de números.
+const PRODUCT_NUMBER_SCALE = 83 / 78;
+
+// Tracking VA -85: -0.085 em respecto del tamaño base del título.
+const PRODUCT_TRACKING_EM = -85 / 1000;
+
+const PRICE_FONT = 'Inter';
+const HEADER_FONT = 'CocoSharp Trial Extrabold';
+
+const PRODUCT_GRADIENT_TOP = '#FEFEFE';
+const PRODUCT_GRADIENT_BOTTOM = '#D0EEF6';
+const PRICE_GRADIENT_TOP = '#FEFEFE';
+const PRICE_GRADIENT_BOTTOM = '#DAE4E7';
+
+// El primer origen corresponde a public/assets/brands/kitchentools.png.
+// El segundo permite usar el mismo archivo directamente dentro de public/assets.
+const HEADER_LOGO_SOURCES = [
+  '/assets/brands/kitchentools.png',
+  '/assets/kitchentools.png',
+  '/kitchentools.png'
+];
+
+// Tracking -80 en programas de diseño equivale a -0.08 em.
+const PRICE_TRACKING_EM = -80 / 1000;
+
+function applyProductRunFont(ctx, run, baseFontSize) {
+  const fontSize = run.isNumber
+    ? baseFontSize * PRODUCT_NUMBER_SCALE
+    : baseFontSize;
+
+  const fontFamily = run.isNumber
+    ? PRODUCT_NUMBER_FONT
+    : PRODUCT_TEXT_FONT;
+
+  ctx.font = `800 ${fontSize}px '${fontFamily}', sans-serif`;
+}
+
+function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
+  const characters = Array.from(text);
+  let cursorX = x;
+
+  characters.forEach((character, index) => {
+    const run = {
+      value: character,
+      isNumber: /^\d$/.test(character)
+    };
+
+    applyProductRunFont(ctx, run, baseFontSize);
+    ctx.fillText(character, cursorX, y);
+    cursorX += ctx.measureText(character).width;
+
+    if (index < characters.length - 1) {
+      cursorX += trackingPx;
     }
-    if (!exceeds) {
-      lines.push(currentLine);
-      if (lines.every(line => ctx.measureText(line).width <= maxWidth)) {
-        break; // Éxito: todas las líneas caben dentro del ancho de la placa
-      }
-    }
-    fontSize -= 2; // Reducir tamaño progresivamente
+  });
+}
+
+const clampPercentage = (value, fallback) => {
+  const numericValue = Number(value);
+  const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
+  return Math.min(100, Math.max(0, safeValue)) / 100;
+};
+
+const loadFirstAvailableImage = async (sources) => {
+  for (const source of sources) {
+    const image = await loadImage(source);
+    if (image) return image;
   }
-  
-  return { lines, fontSize };
+
+  return null;
+};
+
+// Respeta únicamente los saltos de línea escritos por el usuario.
+// No divide palabras ni reduce la fuente según el ancho de la placa.
+function getManualProductLines(text) {
+  return String(text ?? '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n');
 }
 
 // Helpers para obtener offsets/escala de fondo según formato
@@ -75,6 +119,15 @@ function getBgScale(settings, formatKey) {
 }
 
 export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLogosList) => {
+  if (document.fonts) {
+    await Promise.allSettled([
+      document.fonts.load(`800 78px "${PRODUCT_TEXT_FONT}"`),
+      document.fonts.load(`800 83px "${PRODUCT_NUMBER_FONT}"`),
+      document.fonts.load(`700 46px "${PRICE_FONT}"`),
+      document.fonts.load(`800 36px "${HEADER_FONT}"`)
+    ]);
+  }
+
   const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
   canvas.width = spec.width;
   canvas.height = spec.height;
@@ -89,8 +142,8 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // -------------------------------------------------------------
   // CAPA 1: Imagen de Fondo (Cover / Aspect Fill con offsets por formato)
   // -------------------------------------------------------------
-  const bgSrc = settings.syncBackgrounds 
-    ? (settings.backgrounds['4:5'] || settings.backgrounds[formatKey]) 
+  const bgSrc = settings.syncBackgrounds
+    ? (settings.backgrounds['4:5'] || settings.backgrounds[formatKey])
     : (settings.backgrounds[formatKey] || settings.backgrounds['4:5']);
 
   if (bgSrc) {
@@ -152,10 +205,9 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // -------------------------------------------------------------
   const headerMargin = (settings.headerMargin || 40) * gScale;
   const headerFontSize = Math.round((settings.headerFontSize || 36) * gScale);
-  const headerFontFamily = settings.headerFontFamily || 'Montserrat';
 
   // Pre-cargar logo de KitchenTools para el encabezado
-  const headerLogoImg = await loadImage('/assets/brands/kitchentools.svg');
+  const headerLogoImg = await loadFirstAvailableImage(HEADER_LOGO_SOURCES);
 
   // Función para dibujar el encabezado en una posición Y dada
   const drawHeader = (headerY) => {
@@ -163,16 +215,20 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
     ctx.save();
 
-    // Sombra para legibilidad
-    ctx.shadowColor = 'rgba(0,0,0,0.8)';
-    ctx.shadowBlur = 12;
-    ctx.shadowOffsetY = 4;
+    // La sombra del encabezado se puede activar o desactivar desde el panel.
+    if (settings.headerShadow !== false) {
+      ctx.shadowColor = 'rgba(0,0,0,0.8)';
+      ctx.shadowBlur = 12 * gScale;
+      ctx.shadowOffsetY = 4 * gScale;
+    }
 
     const textKT = 'KITCHENTOOLS';
     const textSuffix = isHeaderHogar ? ' | HOGAR' : ' | GASTRONOMÍA';
     const suffixColor = isHeaderHogar ? '#FF870C' : '#62A200';
 
-    ctx.font = `800 ${headerFontSize}px '${headerFontFamily}', sans-serif`;
+    // El encabezado usa siempre CocoSharp, incluso si localStorage conserva
+    // una configuración tipográfica anterior.
+    ctx.font = `800 ${headerFontSize}px '${HEADER_FONT}', sans-serif`;
     ctx.textBaseline = 'top';
 
     const ktWidth = ctx.measureText(textKT).width;
@@ -181,7 +237,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
     // El logo se ajusta proporcionalmente al alto de la tipografía
     let logoW = 0;
-    let logoH = headerFontSize;
+    let logoH = headerFontSize * 0.92;
     const logoGap = Math.round(8 * gScale);
 
     if (headerLogoImg) {
@@ -195,7 +251,8 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     // Dibujar logo
     if (headerLogoImg && logoW > 0) {
       // Limpiar sombra para el logo (la sombra del ctx.save aplica)
-      ctx.drawImage(headerLogoImg, startX, headerY, logoW, logoH);
+      const logoY = headerY + ((headerFontSize - logoH) / 2);
+      ctx.drawImage(headerLogoImg, startX, logoY, logoW, logoH);
     }
 
     const textStartX = startX + logoW + (logoW > 0 ? logoGap : 0);
@@ -223,7 +280,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // -------------------------------------------------------------
   const marginX = Math.round(canvas.width * 0.06); // 6% margen izquierdo
   const bottomMargin = Math.round(canvas.height * (formatKey === 'STORY' ? 0.06 : 0.05));
-  
+
   const badgeW = Math.round((settings.badgeWidth || 420) * gScale);
   const badgeH = Math.round((settings.badgeHeight || 120) * gScale);
   const badgeY = canvas.height - bottomMargin - badgeH;
@@ -237,11 +294,12 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   const badgeBgColor = isHogar ? '#fd7d00' : '#00a900';
   const bevelColor = isHogar ? '#f8bc8b' : '#00dc55';
 
-  // Sombra exterior de la placa (lado izquierdo e inferior)
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = -2;
-  ctx.shadowOffsetY = 4;
+  // Sombra exterior regulable de la placa (lado izquierdo e inferior)
+  const badgeShadowIntensity = clampPercentage(settings.badgeShadowIntensity, 70);
+  ctx.shadowColor = `rgba(0, 0, 0, ${0.85 * badgeShadowIntensity})`;
+  ctx.shadowBlur = (4 + (14 * badgeShadowIntensity)) * gScale;
+  ctx.shadowOffsetX = -2 * badgeShadowIntensity * gScale;
+  ctx.shadowOffsetY = (2 + (6 * badgeShadowIntensity)) * gScale;
 
   // Dibujar fondo sólido de la placa
   ctx.beginPath();
@@ -250,27 +308,39 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   ctx.fill();
   ctx.restore();
 
-  // Bisel fino superior (1-2px)
+  // Bisel de iluminación superior: 4 px base (2 px más que antes).
   ctx.save();
   ctx.beginPath();
   ctx.roundRect(badgeX, badgeY, badgeW, badgeH, rad);
   ctx.clip();
 
+  const bevelHeight = Math.max(1, Math.round(4 * gScale));
+
   if (isHogar) {
     // Bisel levemente inclinado a la izquierda para HOGAR
-    const bevelGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX + badgeW * 0.7, badgeY + 3);
+    const bevelGrad = ctx.createLinearGradient(
+      badgeX,
+      badgeY,
+      badgeX + badgeW * 0.7,
+      badgeY + bevelHeight
+    );
     bevelGrad.addColorStop(0, bevelColor);
     bevelGrad.addColorStop(0.6, bevelColor);
     bevelGrad.addColorStop(1, 'rgba(248, 188, 139, 0)');
     ctx.fillStyle = bevelGrad;
-    ctx.fillRect(badgeX, badgeY, badgeW, 2);
+    ctx.fillRect(badgeX, badgeY, badgeW, bevelHeight);
   } else {
     // Bisel superior uniforme para GASTRO
-    const bevelGrad = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + 2);
+    const bevelGrad = ctx.createLinearGradient(
+      badgeX,
+      badgeY,
+      badgeX,
+      badgeY + bevelHeight
+    );
     bevelGrad.addColorStop(0, bevelColor);
     bevelGrad.addColorStop(1, 'rgba(0, 220, 85, 0.2)');
     ctx.fillStyle = bevelGrad;
-    ctx.fillRect(badgeX, badgeY, badgeW, 2);
+    ctx.fillRect(badgeX, badgeY, badgeW, bevelHeight);
   }
 
   // Sombra sutil interior en el lado izquierdo
@@ -297,7 +367,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   if (settings.showDesde) {
     ctx.save();
     const desdeFontSize = Math.round(priceFontSize * 0.38);
-    ctx.font = `800 ${desdeFontSize}px '${settings.priceFontFamily || 'Montserrat'}', sans-serif`;
+    ctx.font = `700 ${desdeFontSize}px '${PRICE_FONT}', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
 
@@ -314,70 +384,125 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // C) Renderizado del Texto de Precio (Perfectamente Centrado en la Placa)
   if (settings.priceText) {
     ctx.save();
-    ctx.font = `900 ${priceFontSize}px '${settings.priceFontFamily || 'Montserrat'}', sans-serif`;
-    ctx.textAlign = 'center';
+    ctx.font = `700 ${priceFontSize}px '${PRICE_FONT}', sans-serif`;
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    
-    // Sombrita interna suave
-    ctx.shadowColor = 'rgba(0,0,0,0.5)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
-    
-    ctx.fillStyle = settings.priceTextColor || '#FFFFFF';
-    
+
     // Si DESDE está activo, bajar un poco el precio para dar espacio
     const priceOffsetY = settings.showDesde ? Math.round(priceFontSize * 0.12) : 0;
-    ctx.fillText(settings.priceText, priceCenterX, priceCenterY + priceOffsetY);
+    const priceY = priceCenterY + priceOffsetY;
+    const priceTrackingPx = priceFontSize * PRICE_TRACKING_EM;
+
+    // Gradiente vertical del precio. No se aplica ninguna sombra al precio.
+    const priceGradient = ctx.createLinearGradient(
+      0,
+      priceY - (priceFontSize * 0.55),
+      0,
+      priceY + (priceFontSize * 0.55)
+    );
+    priceGradient.addColorStop(0, PRICE_GRADIENT_TOP);
+    priceGradient.addColorStop(1, PRICE_GRADIENT_BOTTOM);
+    ctx.fillStyle = priceGradient;
+
+    drawTrackedTextCentered(
+      ctx,
+      settings.priceText,
+      priceCenterX,
+      priceY,
+      priceTrackingPx
+    );
     ctx.restore();
   }
 
   // D) Renderizado del Nombre del Producto (Sobre la Placa)
-  // Restricción Estricta: Su ancho NUNCA debe sobrepasar el ancho de la placa (badgeW)
+  // Las líneas se definen exclusivamente con ENTER en el campo de texto.
   const productFontSize = Math.round((settings.productFontSize || 52) * gScale);
   const productGapToBadge = Math.round(18 * gScale); // px arriba de la placa
-  const maxProductWidth = badgeW;
+  const productLines = getManualProductLines(settings.productName);
+  const fittedFontSize = productFontSize;
+  const productTrackingPx = fittedFontSize * PRODUCT_TRACKING_EM;
 
-  const { lines: productLines, fontSize: fittedFontSize } = wrapTextToFitWidth(
-    ctx,
-    settings.productName || '',
-    maxProductWidth,
-    productFontSize,
-    settings.productFontFamily || 'Montserrat'
+  const lineHeight = Math.round(
+    fittedFontSize *
+    PRODUCT_NUMBER_SCALE *
+    (settings.productLineHeight || 1.15)
   );
-
-  const lineHeight = Math.round(fittedFontSize * (settings.productLineHeight || 1.15));
   const totalProductTextHeight = productLines.length * lineHeight;
   const productTextBottomY = badgeY - productGapToBadge;
 
+  const drawProductLines = (targetCtx) => {
+    productLines.forEach((line, index) => {
+      const lineY = productTextBottomY - ((productLines.length - 1 - index) * lineHeight);
+
+      drawProductText(
+        targetCtx,
+        line,
+        badgeX,
+        lineY,
+        fittedFontSize,
+        productTrackingPx
+      );
+    });
+  };
+
+  // Crear una única silueta del bloque completo antes de generar su sombra.
+  // De este modo, la sombra queda detrás de todo el título y nunca se dibuja
+  // carácter por carácter sobre los caracteres vecinos.
+  if (settings.productShadow) {
+    const maskCanvas = document.createElement('canvas');
+    maskCanvas.width = canvas.width;
+    maskCanvas.height = canvas.height;
+    const maskCtx = maskCanvas.getContext('2d');
+    maskCtx.textAlign = 'left';
+    maskCtx.textBaseline = 'bottom';
+    maskCtx.fillStyle = '#FFFFFF';
+    drawProductLines(maskCtx);
+
+    const shadowCanvas = document.createElement('canvas');
+    shadowCanvas.width = canvas.width;
+    shadowCanvas.height = canvas.height;
+    const shadowCtx = shadowCanvas.getContext('2d');
+    const textShadowIntensity = clampPercentage(settings.textShadowIntensity, 80);
+
+    shadowCtx.shadowColor = `rgba(0, 0, 0, ${0.95 * textShadowIntensity})`;
+    shadowCtx.shadowBlur = (2 + (14 * textShadowIntensity)) * gScale;
+    shadowCtx.shadowOffsetY = (1 + (5 * textShadowIntensity)) * gScale;
+    shadowCtx.drawImage(maskCanvas, 0, 0);
+
+    // Quitar la silueta blanca y conservar únicamente la sombra exterior.
+    shadowCtx.globalCompositeOperation = 'destination-out';
+    shadowCtx.shadowColor = 'transparent';
+    shadowCtx.shadowBlur = 0;
+    shadowCtx.shadowOffsetX = 0;
+    shadowCtx.shadowOffsetY = 0;
+    shadowCtx.drawImage(maskCanvas, 0, 0);
+
+    ctx.drawImage(shadowCanvas, 0, 0);
+  }
+
   ctx.save();
-  ctx.font = `900 ${fittedFontSize}px '${settings.productFontFamily}', sans-serif`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'bottom';
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 0;
 
-  // Degradado y sombra en el texto del producto
-  productLines.forEach((line, index) => {
-    // Calculamos Y para cada línea (de abajo hacia arriba)
-    const lineY = productTextBottomY - ((productLines.length - 1 - index) * lineHeight);
-
-    if (settings.productShadow) {
-      ctx.shadowColor = 'rgba(0,0,0,0.9)';
-      ctx.shadowBlur = 10;
-      ctx.shadowOffsetY = 4;
-    }
-
-    // Degradado en texto (de blanco a gris claro)
-    const textGradient = ctx.createLinearGradient(
-      badgeX, 
-      lineY - fittedFontSize, 
-      badgeX + maxProductWidth, 
-      lineY
-    );
-    textGradient.addColorStop(0, settings.productColorStart || '#FFFFFF');
-    textGradient.addColorStop(1, settings.productColorEnd || '#CBD5E1');
-
-    ctx.fillStyle = textGradient;
-    ctx.fillText(line, badgeX, lineY);
-  });
+  // Un solo gradiente vertical atraviesa todas las líneas: blanco arriba y
+  // celeste en la línea inferior.
+  const productGradientTopY = productTextBottomY
+    - ((productLines.length - 1) * lineHeight)
+    - (fittedFontSize * PRODUCT_NUMBER_SCALE);
+  const productGradient = ctx.createLinearGradient(
+    0,
+    productGradientTopY,
+    0,
+    productTextBottomY
+  );
+  productGradient.addColorStop(0, PRODUCT_GRADIENT_TOP);
+  productGradient.addColorStop(1, PRODUCT_GRADIENT_BOTTOM);
+  ctx.fillStyle = productGradient;
+  drawProductLines(ctx);
   ctx.restore();
 
   // E) Renderizado del Logo de Marca (Sobre el Nombre del Producto)
@@ -398,7 +523,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
       // Asegurar que el logo tampoco sobrepase desmedidamente el margen
       const logoW = Math.min(targetW, badgeW * 0.9);
       const logoH = (logoImg.height / logoImg.width) * logoW;
-      
+
       const logoX = badgeX;
       const logoY = logoBottomY - logoH;
 
@@ -421,3 +546,34 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     drawHeader(safeHeaderY);
   }
 };
+
+function measureTrackedText(ctx, text, trackingPx) {
+  const characters = Array.from(text);
+
+  const glyphWidth = characters.reduce(
+    (total, character) => total + ctx.measureText(character).width,
+    0
+  );
+
+  return glyphWidth + Math.max(0, characters.length - 1) * trackingPx;
+}
+
+function drawTrackedTextCentered(
+  ctx,
+  text,
+  centerX,
+  y,
+  trackingPx
+) {
+  const characters = Array.from(text);
+  const totalWidth = measureTrackedText(ctx, text, trackingPx);
+
+  let cursorX = centerX - totalWidth / 2;
+
+  ctx.textAlign = 'left';
+
+  for (const character of characters) {
+    ctx.fillText(character, cursorX, y);
+    cursorX += ctx.measureText(character).width + trackingPx;
+  }
+}

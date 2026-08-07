@@ -81,25 +81,27 @@ export const DEFAULT_SETTINGS = {
   // Configuración de Encabezado
   headerVariant: 'GASTRO',       // 'GASTRO' o 'HOGAR'
   headerFontSize: 36,            // px base en canvas
-  headerFontFamily: 'Montserrat',
+  headerFontFamily: 'CocoSharp Trial Extrabold',
   showHeader: true,
+  headerShadow: true,           // Permite activar/desactivar la sombra del encabezado
   headerMargin: 40,              // gap/margen al borde de la imagen (px)
   headerPosition: 'TOP',         // 'TOP' o 'BOTTOM'
 
   // Nombre del Producto
   productName: 'Freidora de Aire Industrial 10L',
   productFontSize: 52,
-  productFontFamily: 'Montserrat',
-  productColorStart: '#FFFFFF',
-  productColorEnd: '#CBD5E1',
+  productFontFamily: 'CocoSharp Trial Extrabold',
+  productColorStart: '#FEFEFE',
+  productColorEnd: '#D0EEF6',
   productShadow: true,
+  textShadowIntensity: 80,       // 0 a 100; aplica únicamente al nombre del producto
   productLineHeight: 1.15,       // Espaciado de línea del nombre de producto
 
   // Precio
   priceText: '$ 249.990',
   priceFontSize: 46,
-  priceFontFamily: 'Montserrat',
-  priceTextColor: '#FFFFFF',
+  priceFontFamily: 'Inter',
+  priceTextColor: '#FEFEFE',
 
   // Marca y Logos
   selectedBrandId: 'silcook',
@@ -111,6 +113,7 @@ export const DEFAULT_SETTINGS = {
   badgeWidth: 420,
   badgeHeight: 120,
   badgeBorderRadius: 16,
+  badgeShadowIntensity: 70,      // 0 a 100; intensidad de sombra exterior
   showDesde: false,              // Mostrar texto "DESDE" dentro de la placa
 
   // Gradient negro inferior
