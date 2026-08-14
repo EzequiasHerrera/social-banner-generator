@@ -45,7 +45,8 @@ const GASTRO_BADGE_BASE = '#00a900';
 const GASTRO_BADGE_BEVEL = '#00dc55';
 
 // El + necesita más presencia visual que las letras de CocoSharp. Se amplía
-// junto con el espacio que ocupa y se eleva levemente respecto de la línea.
+// junto con el espacio que ocupa y se eleva levemente respecto de la línea
+// alfabética compartida por todos los caracteres del producto.
 const PRODUCT_PLUS_SCALE = 1.45;
 const PRODUCT_PLUS_RAISE_EM = 0.04;
 
@@ -107,25 +108,11 @@ function drawBeveledGlyph(ctx, character, x, y, baseFontSize, raiseEm = 0) {
   glyphCtx.lineJoin = 'round';
   glyphCtx.strokeText(character, localX, localY);
 
-  const glyphHeight = ascent + descent;
-  let glyphTop = y - glyphHeight;
-
-  if (character === '+') {
-    // El signo + de CocoSharp tiene una caja visible mucho más baja que una
-    // mayúscula. Se centra contra la altura real de una L para que su barra
-    // horizontal no quede apoyada debajo de la línea del texto.
-    const plusFont = ctx.font;
-    ctx.font = `800 ${baseFontSize}px '${PRODUCT_TEXT_FONT}', sans-serif`;
-    const capMetrics = ctx.measureText('L');
-    ctx.font = plusFont;
-    const capHeight = Math.ceil(
-      (capMetrics.actualBoundingBoxAscent || baseFontSize) +
-      (capMetrics.actualBoundingBoxDescent || 0)
-    );
-    glyphTop = y - capHeight + ((capHeight - glyphHeight) / 2);
-  }
-
-  const targetTop = glyphTop - (baseFontSize * raiseEm) - padding;
+  // `y` es siempre la línea base alfabética, igual que en fillText. Antes se
+  // interpretaba como el borde visible inferior, mientras el texto normal se
+  // dibujaba con textBaseline="bottom". Esa mezcla desplazaba hacia abajo todo
+  // el contenido estilizado entre @...@ y también el signo +.
+  const targetTop = y - (baseFontSize * raiseEm) - ascent - padding;
   ctx.drawImage(glyphCanvas, x - padding, targetTop);
 }
 
@@ -518,58 +505,65 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   ctx.restore();
 
-  // B) Texto "DESDE" (opcional, dentro de la placa)
+  // B/C) Texto "DESDE" opcional + precio dentro de la placa
   const priceFontSize = Math.round((settings.priceFontSize || 78) * gScale);
   const priceCenterX = badgeX + (badgeW / 2);
   const priceCenterY = badgeY + (badgeH / 2) + 2;
 
-  if (settings.showDesde) {
-    ctx.save();
-    const desdeFontSize = Math.round(priceFontSize * 0.38);
-    ctx.font = `700 ${desdeFontSize}px '${PRICE_FONT}', sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-
-    // Color según variante
-    ctx.fillStyle = isHogar ? '#7f340c' : '#004b00';
-
-    // Apoyado sobre el borde superior de la tipografía del precio
-    // El precio está centrado verticalmente; "DESDE" va justo arriba
-    const desdeY = priceCenterY - Math.round(priceFontSize * 0.45);
-    ctx.fillText('DESDE', priceCenterX, desdeY);
-    ctx.restore();
-  }
-
-  // C) Renderizado del Texto de Precio (Perfectamente Centrado en la Placa)
   if (settings.priceText) {
     ctx.save();
     ctx.font = `700 ${priceFontSize}px '${PRICE_FONT}', sans-serif`;
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'middle';
-
-    // Si DESDE está activo, bajar un poco el precio para dar espacio
-    const priceOffsetY = settings.showDesde ? Math.round(priceFontSize * 0.12) : 0;
-    const priceY = priceCenterY + priceOffsetY;
     const priceTrackingPx = priceFontSize * PRICE_TRACKING_EM;
+    const priceMetrics = ctx.measureText(settings.priceText);
+    const priceAscent = priceMetrics.actualBoundingBoxAscent || (priceFontSize * 0.78);
+    const priceDescent = priceMetrics.actualBoundingBoxDescent || (priceFontSize * 0.12);
+    const priceVisibleHeight = priceAscent + priceDescent;
+    const priceTopY = priceCenterY - (priceVisibleHeight / 2);
+    const priceBaselineY = priceTopY + priceAscent;
 
     // Gradiente vertical del precio. No se aplica ninguna sombra al precio.
-    const priceGradient = ctx.createLinearGradient(
-      0,
-      priceY - (priceFontSize * 0.55),
-      0,
-      priceY + (priceFontSize * 0.55)
-    );
+    const priceGradient = ctx.createLinearGradient(0, priceTopY, 0, priceTopY + priceVisibleHeight);
     priceGradient.addColorStop(0, PRICE_GRADIENT_TOP);
     priceGradient.addColorStop(1, PRICE_GRADIENT_BOTTOM);
-    ctx.fillStyle = priceGradient;
 
-    drawTrackedTextCentered(
-      ctx,
-      settings.priceText,
-      priceCenterX,
-      priceY,
-      priceTrackingPx
-    );
+    if (settings.showDesde) {
+      // DESDE y el precio forman una sola caja horizontal. Ambos apoyan su
+      // borde visible superior sobre priceTopY, aunque tengan tamaños distintos.
+      const priceWidth = measureTrackedText(ctx, settings.priceText, priceTrackingPx);
+      const desdeFontSize = Math.round(priceFontSize * 0.38);
+      const desdeGap = Math.round(priceFontSize * 0.12);
+
+      ctx.font = `700 ${desdeFontSize}px '${PRICE_FONT}', sans-serif`;
+      const desdeMetrics = ctx.measureText('DESDE');
+      const desdeWidth = desdeMetrics.width;
+      const desdeAscent = desdeMetrics.actualBoundingBoxAscent || (desdeFontSize * 0.78);
+      const groupStartX = priceCenterX - ((desdeWidth + desdeGap + priceWidth) / 2);
+
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = isHogar ? '#7f340c' : '#004b00';
+      ctx.fillText('DESDE', groupStartX, priceTopY + desdeAscent);
+
+      ctx.font = `700 ${priceFontSize}px '${PRICE_FONT}', sans-serif`;
+      ctx.fillStyle = priceGradient;
+      drawTrackedTextFromX(
+        ctx,
+        settings.priceText,
+        groupStartX + desdeWidth + desdeGap,
+        priceBaselineY,
+        priceTrackingPx
+      );
+    } else {
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = priceGradient;
+      drawTrackedTextCentered(
+        ctx,
+        settings.priceText,
+        priceCenterX,
+        priceBaselineY,
+        priceTrackingPx
+      );
+    }
     ctx.restore();
   }
 
@@ -587,14 +581,26 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     (settings.productLineHeight || 0.80)
   );
   const totalProductTextHeight = productLines.length * lineHeight;
-  const productTextBottomY = badgeY - productGapToBadge;
+
+  // Conservamos el borde visual inferior que tenía el bloque, pero a partir de
+  // aquí todas las variantes (normal, + y @...@) comparten una línea base
+  // alfabética real. Así no hay saltos verticales dentro de una misma línea.
+  ctx.save();
+  ctx.font = `800 ${fittedFontSize}px '${PRODUCT_TEXT_FONT}', sans-serif`;
+  const productReferenceMetrics = ctx.measureText('Lg');
+  ctx.restore();
+  const productReferenceDescent = Math.ceil(
+    productReferenceMetrics.actualBoundingBoxDescent || (fittedFontSize * 0.2)
+  );
+  const productVisibleBottomY = badgeY - productGapToBadge;
+  const productTextBaselineY = productVisibleBottomY - productReferenceDescent;
   const productLineWidths = productLines.map((line) => (
     measureProductText(ctx, line, fittedFontSize, productTrackingPx)
   ));
 
   const drawProductLines = (targetCtx) => {
     productLines.forEach((line, index) => {
-      const lineY = productTextBottomY - ((productLines.length - 1 - index) * lineHeight);
+      const lineY = productTextBaselineY - ((productLines.length - 1 - index) * lineHeight);
 
       drawProductText(
         targetCtx,
@@ -616,7 +622,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     maskCanvas.height = canvas.height;
     const maskCtx = maskCanvas.getContext('2d');
     maskCtx.textAlign = 'left';
-    maskCtx.textBaseline = 'bottom';
+    maskCtx.textBaseline = 'alphabetic';
     maskCtx.fillStyle = '#FFFFFF';
     drawProductLines(maskCtx);
 
@@ -644,7 +650,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   ctx.save();
   ctx.textAlign = 'left';
-  ctx.textBaseline = 'bottom';
+  ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
   ctx.shadowOffsetX = 0;
@@ -652,14 +658,14 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   // Un solo gradiente vertical atraviesa todas las líneas: blanco arriba y
   // celeste en la línea inferior.
-  const productGradientTopY = productTextBottomY
+  const productGradientTopY = productVisibleBottomY
     - ((productLines.length - 1) * lineHeight)
     - (fittedFontSize * PRODUCT_NUMBER_SCALE);
   const productGradient = ctx.createLinearGradient(
     0,
     productGradientTopY,
     0,
-    productTextBottomY
+    productVisibleBottomY
   );
   productGradient.addColorStop(0, PRODUCT_GRADIENT_TOP);
   productGradient.addColorStop(1, PRODUCT_GRADIENT_BOTTOM);
@@ -669,7 +675,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   // E) Renderizado del Logo de Marca (Sobre el Nombre del Producto)
   const brandLogoGap = (settings.brandLogoGap || 8) * gScale;
-  const productTopY = productTextBottomY - totalProductTextHeight;
+  const productTopY = productVisibleBottomY - totalProductTextHeight;
   const logoBottomY = productTopY - brandLogoGap;
 
   let creativeStackMinX = badgeX;
@@ -751,15 +757,19 @@ function drawTrackedTextCentered(
   y,
   trackingPx
 ) {
-  const characters = Array.from(text);
   const totalWidth = measureTrackedText(ctx, text, trackingPx);
+  drawTrackedTextFromX(ctx, text, centerX - totalWidth / 2, y, trackingPx);
+}
 
-  let cursorX = centerX - totalWidth / 2;
+function drawTrackedTextFromX(ctx, text, startX, y, trackingPx) {
+  const characters = Array.from(text);
+  let cursorX = startX;
 
   ctx.textAlign = 'left';
 
-  for (const character of characters) {
+  characters.forEach((character, index) => {
     ctx.fillText(character, cursorX, y);
-    cursorX += ctx.measureText(character).width + trackingPx;
-  }
+    cursorX += ctx.measureText(character).width;
+    if (index < characters.length - 1) cursorX += trackingPx;
+  });
 }
