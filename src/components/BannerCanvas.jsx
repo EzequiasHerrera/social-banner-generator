@@ -2,6 +2,11 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Download, Monitor } from 'lucide-react';
 import { renderBannerToCanvas, CANVAS_SPECIFICATIONS } from '../utils/canvasRenderer';
 
+// El Canvas determina el límite visual real para no dejar píxeles vacíos.
+// Este valor solo evita que el control numérico crezca indefinidamente y debe
+// ser suficientemente amplio para recorrer imágenes escaladas hasta 3x.
+const BG_OFFSET_CONTROL_LIMIT = 10000;
+
 export const BannerCanvas = ({
   formatKey,
   settings,
@@ -71,11 +76,11 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
 
     event.preventDefault();
     pendingOffsetsRef.current = {
-      [offsetXKey]: Math.max(-500, Math.min(500, Math.round(
+      [offsetXKey]: Math.max(-BG_OFFSET_CONTROL_LIMIT, Math.min(BG_OFFSET_CONTROL_LIMIT, Math.round(
         drag.startOffsetX +
         (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
       ))),
-      [offsetYKey]: Math.max(-500, Math.min(500, Math.round(
+      [offsetYKey]: Math.max(-BG_OFFSET_CONTROL_LIMIT, Math.min(BG_OFFSET_CONTROL_LIMIT, Math.round(
         drag.startOffsetY +
         (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
       )))

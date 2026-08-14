@@ -93,6 +93,10 @@ const NumericRangeControl = ({
 };
 
 const FORMAT_SUFFIX = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' };
+// El límite anterior de ±500 px impedía recorrer una imagen ampliada. El
+// renderizador sigue deteniendo la imagen exactamente en el borde válido, pero
+// los controles ahora ofrecen recorrido suficiente para alcanzar ese borde.
+const BG_OFFSET_CONTROL_LIMIT = 10000;
 
 const BgPositionControls = ({ formatKey, label, settings, updateSettings }) => {
   const suffix = FORMAT_SUFFIX[formatKey];
@@ -103,8 +107,8 @@ const BgPositionControls = ({ formatKey, label, settings, updateSettings }) => {
   return (
     <div className="bg-position-controls">
       <span className="position-controls-label">{label}</span>
-      <NumericRangeControl label="Posición X" value={offsetX} min={-500} max={500} unit=" px" onChange={(nextValue) => updateSettings({ [`bgOffsetX_${suffix}`]: nextValue })} />
-      <NumericRangeControl label="Posición Y" value={offsetY} min={-500} max={500} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgOffsetY_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición X" value={offsetX} min={-BG_OFFSET_CONTROL_LIMIT} max={BG_OFFSET_CONTROL_LIMIT} unit=" px" onChange={(nextValue) => updateSettings({ [`bgOffsetX_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición Y" value={offsetY} min={-BG_OFFSET_CONTROL_LIMIT} max={BG_OFFSET_CONTROL_LIMIT} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgOffsetY_${suffix}`]: nextValue })} />
       <NumericRangeControl label="Escala" value={Math.max(1, scale)} min={1} max={3} step={0.01} unit="x" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgScale_${suffix}`]: nextValue })} />
     </div>
   );
