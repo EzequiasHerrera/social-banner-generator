@@ -115,6 +115,11 @@ export const DEFAULT_SETTINGS = {
   brandLogoOffsetX_STORY: 0,
   brandLogoOffsetY_STORY: 0,
 
+  // Desplazamiento vertical del conjunto: logo de marca + título + placa/precio
+  creativeStackOffsetY_45: 0,
+  creativeStackOffsetY_FEED: 0,
+  creativeStackOffsetY_STORY: 0,
+
   // Placa de Precio
   badgeVariant: 'GASTRO',        // 'GASTRO' o 'HOGAR'
   badgeWidth: 420,

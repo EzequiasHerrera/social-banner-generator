@@ -482,6 +482,24 @@ body {
 }
 
 /* MARCAS & BRAND GRID */
+.uploader-section {
+  display: flex;
+  flex-direction: column;
+}
+
+/* El fondo queda primero visualmente para acelerar la carga inicial. */
+.background-control-group {
+  order: 1;
+}
+
+.brand-background-divider {
+  order: 2;
+}
+
+.brand-control-group {
+  order: 3;
+}
+
 .brand-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

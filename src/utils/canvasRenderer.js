@@ -180,6 +180,46 @@ function getBrandLogoOffset(settings, formatKey, axis) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function getCreativeStackOffsetY(settings, formatKey) {
+  const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
+  const suffix = keyMap[formatKey] || '45';
+  const value = Number(settings[`creativeStackOffsetY_${suffix}`]);
+  return Number.isFinite(value) ? value : 0;
+}
+
+// Calcula un Aspect Fill y limita la posición para que ningún borde del
+// Canvas quede sin imagen. Se trabaja con píxeles enteros para evitar líneas
+// transparentes de 1 px causadas por redondeos subpíxel.
+export function getCoveredBackgroundLayout(
+  imageWidth,
+  imageHeight,
+  canvasWidth,
+  canvasHeight,
+  userScale = 1,
+  userOffsetX = 0,
+  userOffsetY = 0
+) {
+  const safeImageWidth = Math.max(1, Number(imageWidth) || 1);
+  const safeImageHeight = Math.max(1, Number(imageHeight) || 1);
+  const coverScale = Math.max(
+    canvasWidth / safeImageWidth,
+    canvasHeight / safeImageHeight
+  );
+  const safeUserScale = Math.max(1, Number(userScale) || 1);
+
+  const drawW = Math.max(canvasWidth, Math.ceil(safeImageWidth * coverScale * safeUserScale));
+  const drawH = Math.max(canvasHeight, Math.ceil(safeImageHeight * coverScale * safeUserScale));
+  const desiredX = ((canvasWidth - drawW) / 2) + (Number(userOffsetX) || 0);
+  const desiredY = ((canvasHeight - drawH) / 2) + (Number(userOffsetY) || 0);
+
+  return {
+    drawW,
+    drawH,
+    drawX: Math.min(0, Math.max(canvasWidth - drawW, Math.round(desiredX))),
+    drawY: Math.min(0, Math.max(canvasHeight - drawH, Math.round(desiredY)))
+  };
+}
+
 export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLogosList) => {
   if (document.fonts) {
     await Promise.allSettled([
@@ -215,27 +255,15 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
       const userOffsetX = getBgOffset(settings, formatKey, 'X');
       const userOffsetY = getBgOffset(settings, formatKey, 'Y');
 
-      const imgRatio = bgImg.width / bgImg.height;
-      const canvasRatio = canvas.width / canvas.height;
-      let drawW, drawH, drawX, drawY;
-
-      if (imgRatio > canvasRatio) {
-        drawH = canvas.height;
-        drawW = canvas.height * imgRatio;
-        drawX = (canvas.width - drawW) / 2;
-        drawY = 0;
-      } else {
-        drawW = canvas.width;
-        drawH = canvas.width / imgRatio;
-        drawX = 0;
-        drawY = (canvas.height - drawH) / 2;
-      }
-
-      // Aplicar escala y offsets del usuario
-      drawW *= userScale;
-      drawH *= userScale;
-      drawX = drawX - (drawW - (imgRatio > canvasRatio ? canvas.height * imgRatio : canvas.width)) / 2 + userOffsetX;
-      drawY = drawY - (drawH - (imgRatio > canvasRatio ? canvas.height : canvas.width / imgRatio)) / 2 + userOffsetY;
+      const { drawW, drawH, drawX, drawY } = getCoveredBackgroundLayout(
+        bgImg.width,
+        bgImg.height,
+        canvas.width,
+        canvas.height,
+        userScale,
+        userOffsetX,
+        userOffsetY
+      );
 
       ctx.drawImage(bgImg, drawX, drawY, drawW, drawH);
     }
@@ -342,10 +370,11 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // -------------------------------------------------------------
   const marginX = Math.round(canvas.width * 0.06); // 6% margen izquierdo
   const bottomMargin = Math.round(canvas.height * (formatKey === 'STORY' ? 0.06 : 0.05));
+  const creativeStackOffsetY = getCreativeStackOffsetY(settings, formatKey);
 
   const badgeW = Math.round((settings.badgeWidth || 420) * gScale);
   const badgeH = Math.round((settings.badgeHeight || 120) * gScale);
-  const badgeY = canvas.height - bottomMargin - badgeH;
+  const badgeY = canvas.height - bottomMargin - badgeH + creativeStackOffsetY;
   const badgeX = marginX;
   const rad = Math.round((settings.badgeBorderRadius || 16) * gScale);
 

@@ -105,7 +105,7 @@ const BgPositionControls = ({ formatKey, label, settings, updateSettings }) => {
       <span className="position-controls-label">{label}</span>
       <NumericRangeControl label="Posición X" value={offsetX} min={-500} max={500} unit=" px" onChange={(nextValue) => updateSettings({ [`bgOffsetX_${suffix}`]: nextValue })} />
       <NumericRangeControl label="Posición Y" value={offsetY} min={-500} max={500} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgOffsetY_${suffix}`]: nextValue })} />
-      <NumericRangeControl label="Escala" value={scale} min={0.5} max={3} step={0.01} unit="x" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgScale_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Escala" value={Math.max(1, scale)} min={1} max={3} step={0.01} unit="x" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgScale_${suffix}`]: nextValue })} />
     </div>
   );
 };
@@ -120,6 +120,25 @@ const BrandLogoPositionControls = ({ formatKey, label, settings, updateSettings 
       <span className="position-controls-label">{label}</span>
       <NumericRangeControl label="Posición X" value={offsetX} min={-1200} max={1200} unit=" px" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetX_${suffix}`]: nextValue })} />
       <NumericRangeControl label="Posición Y" value={offsetY} min={-1800} max={1800} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetY_${suffix}`]: nextValue })} />
+    </div>
+  );
+};
+
+const CreativeStackPositionControls = ({ formatKey, label, settings, updateSettings }) => {
+  const suffix = FORMAT_SUFFIX[formatKey];
+  const offsetY = settings[`creativeStackOffsetY_${suffix}`] ?? 0;
+
+  return (
+    <div className="bg-position-controls">
+      <span className="position-controls-label">{label}</span>
+      <NumericRangeControl
+        label="Mover conjunto arriba / abajo"
+        value={offsetY}
+        min={-1800}
+        max={1800}
+        unit=" px"
+        onChange={(nextValue) => updateSettings({ [`creativeStackOffsetY_${suffix}`]: nextValue })}
+      />
     </div>
   );
 };
@@ -234,7 +253,7 @@ export const ImageUploader = ({
   return (
     <div className="uploader-section">
       {/* 1. SELECCIÓN Y CARGA DE MARCA */}
-      <div className="control-group">
+      <div className="control-group brand-control-group">
         <div className="control-header">
           <label className="control-label">
             <Tag size={16} className="text-emerald-400" />
@@ -300,12 +319,25 @@ export const ImageUploader = ({
           <BrandLogoPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
           <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
         </div>
+
+        <div className="control-card mt-3">
+          <div className="card-header">
+            <Move size={16} className="text-emerald-400" />
+            <h3>Posición del Conjunto Creativo</h3>
+          </div>
+          <span className="helper-text">
+            Mueve juntos el logo de marca, el título y la placa de precio. Cada formato conserva su propia altura.
+          </span>
+          <CreativeStackPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
+          <CreativeStackPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
+          <CreativeStackPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
+        </div>
       </div>
 
-      <hr className="divider" />
+      <hr className="divider brand-background-divider" />
 
       {/* 2. GESTIÓN DE IMÁGENES DE FONDO */}
-      <div className="control-group">
+      <div className="control-group background-control-group">
         <div className="control-header">
           <label className="control-label">
             <ImageIcon size={16} className="text-emerald-400" />
@@ -363,7 +395,7 @@ export const ImageUploader = ({
                 <h3>Posición y Escala de Imagen</h3>
               </div>
               <span className="helper-text">
-                La imagen puede ser la misma, pero el encuadre se guarda de manera independiente en cada formato.
+                La imagen puede ser la misma, pero el encuadre se guarda de manera independiente en cada formato. El programa corrige automáticamente la posición para que nunca queden bordes vacíos.
               </span>
               <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
               <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
