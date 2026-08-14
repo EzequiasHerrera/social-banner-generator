@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, ArrowUpDown, MoveHorizontal, CheckSquare, Square } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
+import { AccordionCard } from './AccordionCard';
 
 export const Sidebar = ({
   settings,
@@ -54,11 +55,11 @@ export const Sidebar = ({
         {activeTab === 'CONTENT' && (
           <div className="tab-pane">
             {/* 1. Encabezado Superior */}
-            <div className="control-card">
-              <div className="card-header">
-                <Sparkles size={16} className="text-emerald-400" />
-                <h3>Encabezado Superior</h3>
-              </div>
+            <AccordionCard
+              title="Encabezado Superior"
+              icon={<Sparkles size={16} className="text-emerald-400" />}
+              defaultOpen
+            >
               
               <div className="input-field">
                 <label>Variante de Encabezado</label>
@@ -125,14 +126,14 @@ export const Sidebar = ({
                 onChange={() => updateSettings({ headerShadow: settings.headerShadow === false })}
                 label="Encabezado con sombra"
               />
-            </div>
+            </AccordionCard>
 
             {/* 2. Nombre del Producto */}
-            <div className="control-card mt-4">
-              <div className="card-header">
-                <Type size={16} className="text-emerald-400" />
-                <h3>Nombre del Producto</h3>
-              </div>
+            <AccordionCard
+              title="Nombre del Producto"
+              icon={<Type size={16} className="text-emerald-400" />}
+              className="mt-4"
+            >
 
               <div className="input-field">
                 <label>Texto del Producto</label>
@@ -145,6 +146,7 @@ export const Sidebar = ({
                 <span className="helper-text">
                   * Presioná ENTER para definir cada línea. El programa no dividirá el texto ni reducirá su tamaño automáticamente.
                   El carácter + adopta automáticamente el relleno y bisel verde de la placa GASTRO.
+                  Para aplicar ese estilo a un texto sin cambiar su tipografía, escribilo entre arrobas: @INCREÍBLE@.
                 </span>
               </div>
 
@@ -165,26 +167,26 @@ export const Sidebar = ({
               <div className="slider-field mt-3">
                 <div className="slider-header">
                   <label>Espaciado de Línea</label>
-                  <span className="slider-value">{settings.productLineHeight?.toFixed(2) || '1.15'}</span>
+                  <span className="slider-value">{settings.productLineHeight?.toFixed(2) || '0.80'}</span>
                 </div>
                 <input
                   type="range"
                   min="0.8"
                   max="2.0"
                   step="0.05"
-                  value={settings.productLineHeight || 1.15}
+                  value={settings.productLineHeight || 0.80}
                   onChange={(e) => updateSettings({ productLineHeight: Number(e.target.value) })}
                 />
               </div>
 
-            </div>
+            </AccordionCard>
 
             {/* 3. Valor de Precio */}
-            <div className="control-card mt-4">
-              <div className="card-header">
-                <DollarSign size={16} className="text-emerald-400" />
-                <h3>Texto de Precio</h3>
-              </div>
+            <AccordionCard
+              title="Texto de Precio"
+              icon={<DollarSign size={16} className="text-emerald-400" />}
+              className="mt-4"
+            >
 
               <div className="input-field">
                 <label>Precio del Producto</label>
@@ -210,7 +212,7 @@ export const Sidebar = ({
                 />
               </div>
 
-            </div>
+            </AccordionCard>
           </div>
         )}
 
@@ -230,13 +232,18 @@ export const Sidebar = ({
         {activeTab === 'STYLE' && (
           <div className="tab-pane">
             {/* Espaciado del Logo de Marca */}
-            <div className="control-card">
-              <div className="card-header">
-                <ArrowUpDown size={16} className="text-emerald-400" />
-                <h3>Espaciado de Logo de Marca</h3>
-              </div>
+            <AccordionCard
+              title="Espaciado de Logo de Marca"
+              icon={<ArrowUpDown size={16} className="text-emerald-400" />}
+            >
 
-              <div className="slider-field">
+              <CheckToggle
+                checked={settings.showBrandLogo !== false}
+                onChange={() => updateSettings({ showBrandLogo: settings.showBrandLogo === false })}
+                label="Mostrar Logo de Marca"
+              />
+
+              <div className="slider-field mt-3">
                 <div className="slider-header">
                   <label>Espacio / Gap sobre el Producto</label>
                   <span className="slider-value">{settings.brandLogoGap} px</span>
@@ -265,14 +272,14 @@ export const Sidebar = ({
                 />
               </div>
 
-            </div>
+            </AccordionCard>
 
             {/* Placa de Precio */}
-            <div className="control-card mt-4">
-              <div className="card-header">
-                <MoveHorizontal size={16} className="text-emerald-400" />
-                <h3>Placa de Precio</h3>
-              </div>
+            <AccordionCard
+              title="Placa de Precio"
+              icon={<MoveHorizontal size={16} className="text-emerald-400" />}
+              className="mt-4"
+            >
 
               <div className="input-field">
                 <label>Variante de Placa</label>
@@ -333,14 +340,14 @@ export const Sidebar = ({
                   onChange={(e) => updateSettings({ badgeShadowIntensity: Number(e.target.value) })}
                 />
               </div>
-            </div>
+            </AccordionCard>
 
             {/* Gradient y Escala Global */}
-            <div className="control-card mt-4">
-              <div className="card-header">
-                <Layers size={16} className="text-emerald-400" />
-                <h3>Efectos y Escala</h3>
-              </div>
+            <AccordionCard
+              title="Efectos y Escala"
+              icon={<Layers size={16} className="text-emerald-400" />}
+              className="mt-4"
+            >
 
               <CheckToggle
                 checked={settings.showDarkGradient !== false}
@@ -377,7 +384,7 @@ export const Sidebar = ({
                   onChange={(e) => updateSettings({ globalScale: Number(e.target.value) })}
                 />
               </div>
-            </div>
+            </AccordionCard>
           </div>
         )}
       </div>

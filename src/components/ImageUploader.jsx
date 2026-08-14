@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move } from 'lucide-react';
+import { AccordionCard } from './AccordionCard';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
@@ -257,13 +258,20 @@ export const ImageUploader = ({
   return (
     <div className="uploader-section">
       {/* 1. SELECCIÓN Y CARGA DE MARCA */}
-      <div className="control-group brand-control-group">
-        <div className="control-header">
-          <label className="control-label">
-            <Tag size={16} className="text-emerald-400" />
-            <span>Logo de Marca (Catálogo / PNG)</span>
-          </label>
-        </div>
+      <AccordionCard
+        title="Logo de Marca (Catálogo / PNG)"
+        icon={<Tag size={16} className="text-emerald-400" />}
+        className="control-group brand-control-group"
+      >
+
+        <label className="checkbox-label" onClick={() => updateSettings({ showBrandLogo: settings.showBrandLogo === false })}>
+          {settings.showBrandLogo !== false ? (
+            <CheckSquare size={18} className="text-emerald-400" />
+          ) : (
+            <Square size={18} className="text-gray-500" />
+          )}
+          <span className="font-medium text-sm">Mostrar Logo de Marca</span>
+        </label>
 
         {/* Lista de Selección de Marcas */}
         <div className="brand-grid">
@@ -311,43 +319,42 @@ export const ImageUploader = ({
           <span className="drop-zone-hint">o arrastrá un PNG/SVG acá</span>
         </div>
 
-        <div className="control-card mt-3">
-          <div className="card-header">
-            <Move size={16} className="text-emerald-400" />
-            <h3>Posición Libre del Logo de Marca</h3>
-          </div>
+        <AccordionCard
+          title="Posición Libre del Logo de Marca"
+          icon={<Move size={16} className="text-emerald-400" />}
+          className="mt-3"
+        >
           <span className="helper-text">
             Mové el logo desde su ubicación automática. Cada formato conserva su propia posición; también podés escribir el valor exacto.
           </span>
           <BrandLogoPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
           <BrandLogoPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
           <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
-        </div>
+        </AccordionCard>
 
-        <div className="control-card mt-3">
-          <div className="card-header">
-            <Move size={16} className="text-emerald-400" />
-            <h3>Posición del Conjunto Creativo</h3>
-          </div>
+        <AccordionCard
+          title="Posición del Conjunto Creativo"
+          icon={<Move size={16} className="text-emerald-400" />}
+          className="mt-3"
+        >
           <span className="helper-text">
-            Mueve juntos el logo de marca, el título y la placa de precio. Cada formato conserva su propia altura.
+            Mové juntos el logo de marca, el título y la placa de precio. También podés arrastrar directamente este conjunto en cada vista previa; el movimiento queda limitado al eje Y.
           </span>
           <CreativeStackPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
           <CreativeStackPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
           <CreativeStackPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
-        </div>
-      </div>
+        </AccordionCard>
+      </AccordionCard>
 
       <hr className="divider brand-background-divider" />
 
       {/* 2. GESTIÓN DE IMÁGENES DE FONDO */}
-      <div className="control-group background-control-group">
-        <div className="control-header">
-          <label className="control-label">
-            <ImageIcon size={16} className="text-emerald-400" />
-            <span>Imágenes de Fondo por Formato</span>
-          </label>
-        </div>
+      <AccordionCard
+        title="Imágenes de Fondo por Formato"
+        icon={<ImageIcon size={16} className="text-emerald-400" />}
+        className="control-group background-control-group"
+        defaultOpen
+      >
 
         {/* Checkbox Sincronización Global de Imagen de Fondo */}
         <label className="checkbox-label" onClick={() => updateSettings({ syncBackgrounds: !settings.syncBackgrounds })}>
@@ -393,18 +400,18 @@ export const ImageUploader = ({
             </div>
 
             {/* Controles de posición/escala globales */}
-            <div className="control-card mt-3">
-              <div className="card-header">
-                <Move size={16} className="text-emerald-400" />
-                <h3>Posición y Escala de Imagen</h3>
-              </div>
+            <AccordionCard
+              title="Posición y Escala de Imagen"
+              icon={<Move size={16} className="text-emerald-400" />}
+              className="mt-3"
+            >
               <span className="helper-text">
                 La imagen puede ser la misma, pero el encuadre se guarda de manera independiente en cada formato. El programa corrige automáticamente la posición para que nunca queden bordes vacíos.
               </span>
               <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
               <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
               <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
-            </div>
+            </AccordionCard>
           </>
         ) : (
           <div className="bg-uploader-grid mt-3">
@@ -436,9 +443,9 @@ export const ImageUploader = ({
                 <span>Cargar</span>
               </button>
             </div>
-            <div className="control-card mt-2">
+            <AccordionCard title="Encuadre 4:5" icon={<Move size={16} className="text-emerald-400" />} className="mt-2">
               <BgPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
-            </div>
+            </AccordionCard>
 
             {/* FEED */}
             <div
@@ -468,9 +475,9 @@ export const ImageUploader = ({
                 <span>Cargar</span>
               </button>
             </div>
-            <div className="control-card mt-2">
+            <AccordionCard title="Encuadre FEED" icon={<Move size={16} className="text-emerald-400" />} className="mt-2">
               <BgPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
-            </div>
+            </AccordionCard>
 
             {/* STORY */}
             <div
@@ -500,12 +507,12 @@ export const ImageUploader = ({
                 <span>Cargar</span>
               </button>
             </div>
-            <div className="control-card mt-2">
+            <AccordionCard title="Encuadre STORY" icon={<Move size={16} className="text-emerald-400" />} className="mt-2">
               <BgPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
-            </div>
+            </AccordionCard>
           </div>
         )}
-      </div>
+      </AccordionCard>
     </div>
   );
 };

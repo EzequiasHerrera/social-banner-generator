@@ -80,33 +80,34 @@ export const AVAILABLE_FONTS = [
 export const DEFAULT_SETTINGS = {
   // Configuración de Encabezado
   headerVariant: 'GASTRO',       // 'GASTRO' o 'HOGAR'
-  headerFontSize: 36,            // px base en canvas
+  headerFontSize: 35,            // px base en canvas
   headerFontFamily: 'CocoSharp Trial Extrabold',
   showHeader: true,
   headerShadow: true,           // Permite activar/desactivar la sombra del encabezado
-  headerMargin: 40,              // gap/margen al borde de la imagen (px)
+  headerMargin: 25,              // gap/margen al borde de la imagen (px)
   headerPosition: 'TOP',         // 'TOP' o 'BOTTOM'
 
   // Nombre del Producto
   productName: 'Freidora de Aire Industrial 10L',
-  productFontSize: 52,
+  productFontSize: 78,
   productFontFamily: 'CocoSharp Trial Extrabold',
   productColorStart: '#FEFEFE',
   productColorEnd: '#D0EEF6',
   productShadow: true,
   textShadowIntensity: 80,       // 0 a 100; aplica únicamente al nombre del producto
-  productLineHeight: 1.15,       // Espaciado de línea del nombre de producto
+  productLineHeight: 0.80,       // Espaciado de línea del nombre de producto
 
   // Precio
   priceText: '$ 249.990',
-  priceFontSize: 46,
+  priceFontSize: 78,
   priceFontFamily: 'Inter',
   priceTextColor: '#FEFEFE',
 
   // Marca y Logos
   selectedBrandId: 'silcook',
-  brandLogoGap: 24,              // Espaciado entre el logo de marca y el texto del producto
-  brandLogoScale: 1.0,
+  showBrandLogo: true,
+  brandLogoGap: 8,               // Espaciado entre el logo de marca y el texto del producto
+  brandLogoScale: 0.9,
   // Desplazamiento libre del logo de marca, independiente por formato
   brandLogoOffsetX_45: 0,
   brandLogoOffsetY_45: 0,
@@ -122,7 +123,7 @@ export const DEFAULT_SETTINGS = {
 
   // Placa de Precio
   badgeVariant: 'GASTRO',        // 'GASTRO' o 'HOGAR'
-  badgeWidth: 420,
+  badgeWidth: 460,
   badgeHeight: 120,
   badgeBorderRadius: 16,
   badgeShadowIntensity: 70,      // 0 a 100; intensidad de sombra exterior

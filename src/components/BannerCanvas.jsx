@@ -17,13 +17,15 @@ export const BannerCanvas = ({
 }) => {
   const canvasRef = useRef(null);
   const dragRef = useRef(null);
+  const renderMetadataRef = useRef(null);
   const frameRef = useRef(null);
   const pendingOffsetsRef = useRef(null);
-  const [isDraggingBackground, setIsDraggingBackground] = useState(false);
-const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
+  const [dragMode, setDragMode] = useState(null);
+  const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
   const suffix = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' }[formatKey];
   const offsetXKey = `bgOffsetX_${suffix}`;
   const offsetYKey = `bgOffsetY_${suffix}`;
+  const creativeStackOffsetYKey = `creativeStackOffsetY_${suffix}`;
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -32,8 +34,8 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
         formatKey,
         settings,
         brandLogos
-      ).then(() => {
-        // Renderizado completado exitosamente
+      ).then((metadata) => {
+        renderMetadataRef.current = metadata;
       });
     }
   }, [formatKey, settings, brandLogos]);
@@ -50,11 +52,24 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
   };
 
   const handlePointerDown = (event) => {
-    if (event.button !== 0 || !settings.backgrounds?.[formatKey]) return;
+    if (event.button !== 0) return;
 
     const canvas = canvasRef.current;
     const bounds = canvas?.getBoundingClientRect();
     if (!canvas || !bounds?.width || !bounds?.height) return;
+
+    const canvasX = (event.clientX - bounds.left) * (canvas.width / bounds.width);
+    const canvasY = (event.clientY - bounds.top) * (canvas.height / bounds.height);
+    const stackBounds = renderMetadataRef.current?.creativeStackBounds;
+    const isInsideStack = Boolean(
+      stackBounds &&
+      canvasX >= stackBounds.x &&
+      canvasX <= stackBounds.x + stackBounds.width &&
+      canvasY >= stackBounds.y &&
+      canvasY <= stackBounds.y + stackBounds.height
+    );
+
+    if (!isInsideStack && !settings.backgrounds?.[formatKey]) return;
 
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
@@ -64,10 +79,12 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
       startClientY: event.clientY,
       startOffsetX: Number(settings[offsetXKey]) || 0,
       startOffsetY: Number(settings[offsetYKey]) || 0,
+      startCreativeStackOffsetY: Number(settings[creativeStackOffsetYKey]) || 0,
       canvasPixelsPerClientX: canvas.width / bounds.width,
-      canvasPixelsPerClientY: canvas.height / bounds.height
+      canvasPixelsPerClientY: canvas.height / bounds.height,
+      mode: isInsideStack ? 'STACK' : 'BACKGROUND'
     };
-    setIsDraggingBackground(true);
+    setDragMode(isInsideStack ? 'STACK' : 'BACKGROUND');
   };
 
   const handlePointerMove = (event) => {
@@ -75,16 +92,25 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
     if (!drag || drag.pointerId !== event.pointerId) return;
 
     event.preventDefault();
-    pendingOffsetsRef.current = {
-      [offsetXKey]: Math.max(-BG_OFFSET_CONTROL_LIMIT, Math.min(BG_OFFSET_CONTROL_LIMIT, Math.round(
-        drag.startOffsetX +
-        (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
-      ))),
-      [offsetYKey]: Math.max(-BG_OFFSET_CONTROL_LIMIT, Math.min(BG_OFFSET_CONTROL_LIMIT, Math.round(
-        drag.startOffsetY +
-        (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
-      )))
-    };
+    if (drag.mode === 'STACK') {
+      pendingOffsetsRef.current = {
+        [creativeStackOffsetYKey]: Math.max(-1800, Math.min(1800, Math.round(
+          drag.startCreativeStackOffsetY +
+          (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
+        )))
+      };
+    } else {
+      pendingOffsetsRef.current = {
+        [offsetXKey]: Math.max(-BG_OFFSET_CONTROL_LIMIT, Math.min(BG_OFFSET_CONTROL_LIMIT, Math.round(
+          drag.startOffsetX +
+          (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
+        ))),
+        [offsetYKey]: Math.max(-BG_OFFSET_CONTROL_LIMIT, Math.min(BG_OFFSET_CONTROL_LIMIT, Math.round(
+          drag.startOffsetY +
+          (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
+        )))
+      };
+    }
 
     if (!frameRef.current) {
       frameRef.current = requestAnimationFrame(flushPendingOffsets);
@@ -103,7 +129,7 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
       canvasRef.current.releasePointerCapture(event.pointerId);
     }
     dragRef.current = null;
-    setIsDraggingBackground(false);
+    setDragMode(null);
   };
 
   return (
@@ -129,17 +155,17 @@ const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
           ref={canvasRef}
           width={spec.width}
           height={spec.height}
-          className={`rendered-banner-canvas background-draggable ${isDraggingBackground ? 'is-dragging-background' : ''}`}
+          className={`rendered-banner-canvas background-draggable ${dragMode ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={finishBackgroundDrag}
           onPointerCancel={finishBackgroundDrag}
-          title="Arrastrá para reubicar la imagen de fondo"
+          title="Arrastrá el conjunto creativo verticalmente o el fondo libremente"
         />
       </div>
 
       <div className="canvas-card-footer">
-        <span className="resolution-tag">Resolución Exacta: {spec.width} × {spec.height} px · Arrastrá la imagen para reencuadrarla</span>
+        <span className="resolution-tag">Resolución Exacta: {spec.width} × {spec.height} px · Arrastrá el conjunto para moverlo en Y; fuera de él, reencuadrás el fondo</span>
       </div>
     </div>
   );

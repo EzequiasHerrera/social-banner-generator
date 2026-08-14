@@ -46,8 +46,8 @@ const GASTRO_BADGE_BEVEL = '#00dc55';
 
 // El + necesita más presencia visual que las letras de CocoSharp. Se amplía
 // junto con el espacio que ocupa y se eleva levemente respecto de la línea.
-const PRODUCT_PLUS_SCALE = 1.18;
-const PRODUCT_PLUS_RAISE_EM = 0.08;
+const PRODUCT_PLUS_SCALE = 1.45;
+const PRODUCT_PLUS_RAISE_EM = 0.04;
 
 // El primer origen corresponde a public/assets/brands/kitchentools.png.
 // El segundo permite usar el mismo archivo directamente dentro de public/assets.
@@ -75,8 +75,8 @@ function applyProductRunFont(ctx, run, baseFontSize) {
   ctx.font = `800 ${fontSize}px '${fontFamily}', sans-serif`;
 }
 
-function drawBeveledPlus(ctx, x, y, baseFontSize) {
-  const metrics = ctx.measureText('+');
+function drawBeveledGlyph(ctx, character, x, y, baseFontSize, raiseEm = 0) {
+  const metrics = ctx.measureText(character);
   const bevelWidth = Math.max(2, Math.round(baseFontSize * 0.055));
   const padding = bevelWidth * 3;
   const ascent = Math.ceil(metrics.actualBoundingBoxAscent || baseFontSize);
@@ -97,7 +97,7 @@ function drawBeveledPlus(ctx, x, y, baseFontSize) {
 
   // Primero se crea la silueta sólida del signo.
   glyphCtx.fillStyle = GASTRO_BADGE_BASE;
-  glyphCtx.fillText('+', localX, localY);
+  glyphCtx.fillText(character, localX, localY);
 
   // source-atop recorta el trazo al interior de la silueta ya creada. Así el
   // bisel ilumina el borde del carácter sin convertirse en borde exterior.
@@ -105,36 +105,104 @@ function drawBeveledPlus(ctx, x, y, baseFontSize) {
   glyphCtx.strokeStyle = GASTRO_BADGE_BEVEL;
   glyphCtx.lineWidth = bevelWidth * 2;
   glyphCtx.lineJoin = 'round';
-  glyphCtx.strokeText('+', localX, localY);
+  glyphCtx.strokeText(character, localX, localY);
 
-  const raisedY = y - (baseFontSize * PRODUCT_PLUS_RAISE_EM);
-  const targetTop = raisedY - ascent - descent - padding;
+  const glyphHeight = ascent + descent;
+  let glyphTop = y - glyphHeight;
+
+  if (character === '+') {
+    // El signo + de CocoSharp tiene una caja visible mucho más baja que una
+    // mayúscula. Se centra contra la altura real de una L para que su barra
+    // horizontal no quede apoyada debajo de la línea del texto.
+    const plusFont = ctx.font;
+    ctx.font = `800 ${baseFontSize}px '${PRODUCT_TEXT_FONT}', sans-serif`;
+    const capMetrics = ctx.measureText('L');
+    ctx.font = plusFont;
+    const capHeight = Math.ceil(
+      (capMetrics.actualBoundingBoxAscent || baseFontSize) +
+      (capMetrics.actualBoundingBoxDescent || 0)
+    );
+    glyphTop = y - capHeight + ((capHeight - glyphHeight) / 2);
+  }
+
+  const targetTop = glyphTop - (baseFontSize * raiseEm) - padding;
   ctx.drawImage(glyphCanvas, x - padding, targetTop);
 }
 
-function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
-  const characters = Array.from(text);
-  let cursorX = x;
+export function parseProductRuns(text) {
+  const characters = Array.from(String(text ?? ''));
+  const markerIndexes = characters
+    .map((character, index) => character === '@' ? index : -1)
+    .filter((index) => index >= 0);
+  const openings = new Set();
+  const closings = new Set();
+
+  for (let index = 0; index + 1 < markerIndexes.length; index += 2) {
+    openings.add(markerIndexes[index]);
+    closings.add(markerIndexes[index + 1]);
+  }
+
+  let gastroStyled = false;
+  const runs = [];
 
   characters.forEach((character, index) => {
-    const run = {
+    if (openings.has(index)) {
+      gastroStyled = true;
+      return;
+    }
+    if (closings.has(index)) {
+      gastroStyled = false;
+      return;
+    }
+
+    runs.push({
       value: character,
       isNumber: /^\d$/.test(character),
-      isPlus: character === '+'
-    };
+      isPlus: character === '+',
+      isGastroStyled: gastroStyled || character === '+'
+    });
+  });
 
+  return runs;
+}
+
+function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
+  const runs = parseProductRuns(text);
+  let cursorX = x;
+
+  runs.forEach((run, index) => {
+    const character = run.value;
     applyProductRunFont(ctx, run, baseFontSize);
-    if (character === '+') {
-      drawBeveledPlus(ctx, cursorX, y, baseFontSize);
+    if (run.isGastroStyled) {
+      drawBeveledGlyph(
+        ctx,
+        character,
+        cursorX,
+        y,
+        baseFontSize,
+        run.isPlus ? PRODUCT_PLUS_RAISE_EM : 0
+      );
     } else {
       ctx.fillText(character, cursorX, y);
     }
     cursorX += ctx.measureText(character).width;
 
-    if (index < characters.length - 1) {
+    if (index < runs.length - 1) {
       cursorX += trackingPx;
     }
   });
+
+  return cursorX - x;
+}
+
+function measureProductText(ctx, text, baseFontSize, trackingPx) {
+  const runs = parseProductRuns(text);
+  const glyphWidth = runs.reduce((total, run) => {
+    applyProductRunFont(ctx, run, baseFontSize);
+    return total + ctx.measureText(run.value).width;
+  }, 0);
+
+  return glyphWidth + Math.max(0, runs.length - 1) * trackingPx;
 }
 
 const clampPercentage = (value, fallback) => {
@@ -293,8 +361,8 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // CAPA 2: Encabezado (KITCHENTOOLS | GASTRONOMÍA / HOGAR)
   // Se renderiza en TOP o BOTTOM. Si BOTTOM, se calcula después de la placa.
   // -------------------------------------------------------------
-  const headerMargin = (settings.headerMargin || 40) * gScale;
-  const headerFontSize = Math.round((settings.headerFontSize || 36) * gScale);
+  const headerMargin = (settings.headerMargin || 25) * gScale;
+  const headerFontSize = Math.round((settings.headerFontSize || 35) * gScale);
 
   // Pre-cargar logo de KitchenTools para el encabezado
   const headerLogoImg = await loadFirstAvailableImage(HEADER_LOGO_SOURCES);
@@ -372,7 +440,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   const bottomMargin = Math.round(canvas.height * (formatKey === 'STORY' ? 0.06 : 0.05));
   const creativeStackOffsetY = getCreativeStackOffsetY(settings, formatKey);
 
-  const badgeW = Math.round((settings.badgeWidth || 420) * gScale);
+  const badgeW = Math.round((settings.badgeWidth || 460) * gScale);
   const badgeH = Math.round((settings.badgeHeight || 120) * gScale);
   const badgeY = canvas.height - bottomMargin - badgeH + creativeStackOffsetY;
   const badgeX = marginX;
@@ -451,7 +519,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   ctx.restore();
 
   // B) Texto "DESDE" (opcional, dentro de la placa)
-  const priceFontSize = Math.round((settings.priceFontSize || 46) * gScale);
+  const priceFontSize = Math.round((settings.priceFontSize || 78) * gScale);
   const priceCenterX = badgeX + (badgeW / 2);
   const priceCenterY = badgeY + (badgeH / 2) + 2;
 
@@ -507,7 +575,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   // D) Renderizado del Nombre del Producto (Sobre la Placa)
   // Las líneas se definen exclusivamente con ENTER en el campo de texto.
-  const productFontSize = Math.round((settings.productFontSize || 52) * gScale);
+  const productFontSize = Math.round((settings.productFontSize || 78) * gScale);
   const productGapToBadge = Math.round(18 * gScale); // px arriba de la placa
   const productLines = getManualProductLines(settings.productName);
   const fittedFontSize = productFontSize;
@@ -516,10 +584,13 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   const lineHeight = Math.round(
     fittedFontSize *
     PRODUCT_NUMBER_SCALE *
-    (settings.productLineHeight || 1.15)
+    (settings.productLineHeight || 0.80)
   );
   const totalProductTextHeight = productLines.length * lineHeight;
   const productTextBottomY = badgeY - productGapToBadge;
+  const productLineWidths = productLines.map((line) => (
+    measureProductText(ctx, line, fittedFontSize, productTrackingPx)
+  ));
 
   const drawProductLines = (targetCtx) => {
     productLines.forEach((line, index) => {
@@ -597,17 +668,25 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   ctx.restore();
 
   // E) Renderizado del Logo de Marca (Sobre el Nombre del Producto)
-  const brandLogoGap = (settings.brandLogoGap || 24) * gScale;
+  const brandLogoGap = (settings.brandLogoGap || 8) * gScale;
   const productTopY = productTextBottomY - totalProductTextHeight;
   const logoBottomY = productTopY - brandLogoGap;
 
+  let creativeStackMinX = badgeX;
+  let creativeStackMinY = productTopY;
+  let creativeStackMaxX = Math.max(
+    badgeX + badgeW,
+    ...productLineWidths.map((width) => badgeX + width)
+  );
+  const creativeStackMaxY = badgeY + badgeH;
+
   const currentBrand = brandLogosList?.find(b => b.id === settings.selectedBrandId) || brandLogosList?.[0];
-  if (currentBrand?.url) {
+  if (settings.showBrandLogo !== false && currentBrand?.url) {
     const logoImg = await loadImage(currentBrand.url);
     if (logoImg) {
       ctx.save();
       const baseMaxHeight = 70; // px
-      const scale = (settings.brandLogoScale || 1.0) * gScale;
+      const scale = (settings.brandLogoScale || 0.9) * gScale;
       const targetH = baseMaxHeight * scale;
       const targetW = (logoImg.width / logoImg.height) * targetH;
 
@@ -619,6 +698,10 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
       // respecto de la ubicación automática original del logo.
       const logoX = badgeX + getBrandLogoOffset(settings, formatKey, 'X');
       const logoY = logoBottomY - logoH + getBrandLogoOffset(settings, formatKey, 'Y');
+
+      creativeStackMinX = Math.min(creativeStackMinX, logoX);
+      creativeStackMinY = Math.min(creativeStackMinY, logoY);
+      creativeStackMaxX = Math.max(creativeStackMaxX, logoX + logoW);
 
       ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
       ctx.shadowBlur = 8;
@@ -638,6 +721,16 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     const safeHeaderY = Math.max(headerY, badgeY + badgeH + Math.round(10 * gScale));
     drawHeader(safeHeaderY);
   }
+
+  const hitPadding = Math.round(24 * gScale);
+  return {
+    creativeStackBounds: {
+      x: creativeStackMinX - hitPadding,
+      y: creativeStackMinY - hitPadding,
+      width: (creativeStackMaxX - creativeStackMinX) + (hitPadding * 2),
+      height: (creativeStackMaxY - creativeStackMinY) + (hitPadding * 2)
+    }
+  };
 };
 
 function measureTrackedText(ctx, text, trackingPx) {
