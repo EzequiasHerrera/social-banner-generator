@@ -26,6 +26,8 @@ export const BannerCanvas = ({
   const offsetXKey = `bgOffsetX_${suffix}`;
   const offsetYKey = `bgOffsetY_${suffix}`;
   const creativeStackOffsetYKey = `creativeStackOffsetY_${suffix}`;
+  const brandLogoOffsetXKey = `brandLogoOffsetX_${suffix}`;
+  const brandLogoOffsetYKey = `brandLogoOffsetY_${suffix}`;
 
   useEffect(() => {
     if (canvasRef.current) {
@@ -61,6 +63,15 @@ export const BannerCanvas = ({
     const canvasX = (event.clientX - bounds.left) * (canvas.width / bounds.width);
     const canvasY = (event.clientY - bounds.top) * (canvas.height / bounds.height);
     const stackBounds = renderMetadataRef.current?.creativeStackBounds;
+    const logoBounds = renderMetadataRef.current?.brandLogoBounds;
+    const isInsideLogo = Boolean(
+      settings.showBrandLogo !== false &&
+      logoBounds &&
+      canvasX >= logoBounds.x &&
+      canvasX <= logoBounds.x + logoBounds.width &&
+      canvasY >= logoBounds.y &&
+      canvasY <= logoBounds.y + logoBounds.height
+    );
     const isInsideStack = Boolean(
       stackBounds &&
       canvasX >= stackBounds.x &&
@@ -69,7 +80,7 @@ export const BannerCanvas = ({
       canvasY <= stackBounds.y + stackBounds.height
     );
 
-    if (!isInsideStack && !settings.backgrounds?.[formatKey]) return;
+    if (!isInsideLogo && !isInsideStack && !settings.backgrounds?.[formatKey]) return;
 
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
@@ -80,11 +91,13 @@ export const BannerCanvas = ({
       startOffsetX: Number(settings[offsetXKey]) || 0,
       startOffsetY: Number(settings[offsetYKey]) || 0,
       startCreativeStackOffsetY: Number(settings[creativeStackOffsetYKey]) || 0,
+      startBrandLogoOffsetX: Number(settings[brandLogoOffsetXKey]) || 0,
+      startBrandLogoOffsetY: Number(settings[brandLogoOffsetYKey]) || 0,
       canvasPixelsPerClientX: canvas.width / bounds.width,
       canvasPixelsPerClientY: canvas.height / bounds.height,
-      mode: isInsideStack ? 'STACK' : 'BACKGROUND'
+      mode: isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND')
     };
-    setDragMode(isInsideStack ? 'STACK' : 'BACKGROUND');
+    setDragMode(isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND'));
   };
 
   const handlePointerMove = (event) => {
@@ -92,7 +105,18 @@ export const BannerCanvas = ({
     if (!drag || drag.pointerId !== event.pointerId) return;
 
     event.preventDefault();
-    if (drag.mode === 'STACK') {
+    if (drag.mode === 'LOGO') {
+      pendingOffsetsRef.current = {
+        [brandLogoOffsetXKey]: Math.round(
+          drag.startBrandLogoOffsetX +
+          (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
+        ),
+        [brandLogoOffsetYKey]: Math.round(
+          drag.startBrandLogoOffsetY +
+          (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
+        )
+      };
+    } else if (drag.mode === 'STACK') {
       pendingOffsetsRef.current = {
         [creativeStackOffsetYKey]: Math.max(-1800, Math.min(1800, Math.round(
           drag.startCreativeStackOffsetY +
@@ -155,17 +179,17 @@ export const BannerCanvas = ({
           ref={canvasRef}
           width={spec.width}
           height={spec.height}
-          className={`rendered-banner-canvas background-draggable ${dragMode ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''}`}
+          className={`rendered-banner-canvas background-draggable ${dragMode === 'BACKGROUND' ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''} ${dragMode === 'LOGO' ? 'is-dragging-logo' : ''}`}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={finishBackgroundDrag}
           onPointerCancel={finishBackgroundDrag}
-          title="Arrastrá el conjunto creativo verticalmente o el fondo libremente"
+          title="Arrastrá el logo libremente, el conjunto creativo en vertical o el fondo para reencuadrarlo"
         />
       </div>
 
       <div className="canvas-card-footer">
-        <span className="resolution-tag">Resolución Exacta: {spec.width} × {spec.height} px · Arrastrá el conjunto para moverlo en Y; fuera de él, reencuadrás el fondo</span>
+        <span className="resolution-tag">Resolución Exacta: {spec.width} × {spec.height} px · Logo: arrastre libre X/Y · Título/placa: arrastre vertical · Fondo: reencuadre libre</span>
       </div>
     </div>
   );

@@ -93,6 +93,74 @@ const NumericRangeControl = ({
   );
 };
 
+const FreeLogoScaleControl = ({ value, onChange }) => {
+  const safeScale = Number.isFinite(Number(value)) && Number(value) > 0
+    ? Number(value)
+    : 0.9;
+  const percentage = safeScale * 100;
+  const [draftValue, setDraftValue] = useState(String(Math.round(percentage)));
+  const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditingRef.current) setDraftValue(String(Math.round(percentage)));
+  }, [percentage]);
+
+  const commitValue = (rawValue) => {
+    const numericValue = Number(rawValue);
+    const normalizedPercentage = Number.isFinite(numericValue) && numericValue > 0
+      ? numericValue
+      : percentage;
+    setDraftValue(String(normalizedPercentage));
+    onChange(normalizedPercentage / 100);
+  };
+
+  return (
+    <div className="slider-field mt-3">
+      <div className="slider-header">
+        <label>Tamaño del Logo de Marca</label>
+        <span className="slider-value">{Math.round(percentage)}%</span>
+      </div>
+      <div className="range-number-row">
+        <input
+          type="range"
+          min="10"
+          max="500"
+          step="5"
+          value={Math.min(500, Math.max(10, percentage))}
+          onChange={(event) => onChange(Number(event.target.value) / 100)}
+          onPointerDown={(event) => event.stopPropagation()}
+        />
+        <div className="number-input-wrap logo-scale-input-wrap">
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={draftValue}
+            onFocus={() => { isEditingRef.current = true; }}
+            onChange={(event) => setDraftValue(event.target.value)}
+            onBlur={(event) => {
+              isEditingRef.current = false;
+              commitValue(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                commitValue(event.currentTarget.value);
+                event.currentTarget.blur();
+              }
+            }}
+            aria-label="Tamaño libre del logo de marca en porcentaje"
+          />
+          <span>%</span>
+        </div>
+      </div>
+      <span className="helper-text">
+        El campo es libre: podés escribir 600%, 1000% o el valor que necesites.
+      </span>
+    </div>
+  );
+};
+
 const FORMAT_SUFFIX = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' };
 // El límite anterior de ±500 px impedía recorrer una imagen ampliada. El
 // renderizador sigue deteniendo la imagen exactamente en el borde válido, pero
@@ -123,8 +191,8 @@ const BrandLogoPositionControls = ({ formatKey, label, settings, updateSettings 
   return (
     <div className="bg-position-controls">
       <span className="position-controls-label">{label}</span>
-      <NumericRangeControl label="Posición X" value={offsetX} min={-1200} max={1200} unit=" px" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetX_${suffix}`]: nextValue })} />
-      <NumericRangeControl label="Posición Y" value={offsetY} min={-1800} max={1800} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetY_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición X" value={offsetX} min={-10000} max={10000} unit=" px" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetX_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición Y" value={offsetY} min={-10000} max={10000} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`brandLogoOffsetY_${suffix}`]: nextValue })} />
     </div>
   );
 };
@@ -319,31 +387,49 @@ export const ImageUploader = ({
           <span className="drop-zone-hint">o arrastrá un PNG/SVG acá</span>
         </div>
 
+        <div className="brand-settings-block">
+          <FreeLogoScaleControl
+            value={settings.brandLogoScale}
+            onChange={(nextValue) => updateSettings({ brandLogoScale: nextValue })}
+          />
+
+          <NumericRangeControl
+            label="Espacio / Gap sobre el Producto"
+            value={settings.brandLogoGap ?? 8}
+            min={0}
+            max={500}
+            unit=" px"
+            className="mt-3"
+            onChange={(nextValue) => updateSettings({ brandLogoGap: nextValue })}
+          />
+        </div>
+
         <AccordionCard
           title="Posición Libre del Logo de Marca"
           icon={<Move size={16} className="text-emerald-400" />}
           className="mt-3"
         >
           <span className="helper-text">
-            Mové el logo desde su ubicación automática. Cada formato conserva su propia posición; también podés escribir el valor exacto.
+            Arrastrá directamente el logo en cada vista para moverlo libremente en X/Y. Cada formato conserva su propia posición; también podés escribir el valor exacto.
           </span>
           <BrandLogoPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
           <BrandLogoPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
           <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
         </AccordionCard>
 
-        <AccordionCard
-          title="Posición del Conjunto Creativo"
-          icon={<Move size={16} className="text-emerald-400" />}
-          className="mt-3"
-        >
-          <span className="helper-text">
-            Mové juntos el logo de marca, el título y la placa de precio. También podés arrastrar directamente este conjunto en cada vista previa; el movimiento queda limitado al eje Y.
-          </span>
-          <CreativeStackPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
-          <CreativeStackPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
-          <CreativeStackPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
-        </AccordionCard>
+      </AccordionCard>
+
+      <AccordionCard
+        title="Posición del Conjunto Creativo"
+        icon={<Move size={16} className="text-emerald-400" />}
+        className="control-group creative-stack-control-group mt-3"
+      >
+        <span className="helper-text">
+          Mové juntos el logo de marca, el título y la placa de precio. También podés arrastrar directamente el título o la placa; el movimiento queda limitado al eje Y.
+        </span>
+        <CreativeStackPositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
+        <CreativeStackPositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
+        <CreativeStackPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
       </AccordionCard>
 
       <hr className="divider brand-background-divider" />

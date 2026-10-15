@@ -674,7 +674,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   ctx.restore();
 
   // E) Renderizado del Logo de Marca (Sobre el Nombre del Producto)
-  const brandLogoGap = (settings.brandLogoGap || 8) * gScale;
+  const brandLogoGap = (settings.brandLogoGap ?? 8) * gScale;
   const productTopY = productVisibleBottomY - totalProductTextHeight;
   const logoBottomY = productTopY - brandLogoGap;
 
@@ -685,6 +685,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     ...productLineWidths.map((width) => badgeX + width)
   );
   const creativeStackMaxY = badgeY + badgeH;
+  let brandLogoBounds = null;
 
   const currentBrand = brandLogosList?.find(b => b.id === settings.selectedBrandId) || brandLogosList?.[0];
   if (settings.showBrandLogo !== false && currentBrand?.url) {
@@ -692,22 +693,28 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     if (logoImg) {
       ctx.save();
       const baseMaxHeight = 70; // px
-      const scale = (settings.brandLogoScale || 0.9) * gScale;
+      const configuredLogoScale = Number(settings.brandLogoScale);
+      const scale = (
+        Number.isFinite(configuredLogoScale) && configuredLogoScale > 0
+          ? configuredLogoScale
+          : 0.9
+      ) * gScale;
       const targetH = baseMaxHeight * scale;
       const targetW = (logoImg.width / logoImg.height) * targetH;
-
-      // Asegurar que el logo tampoco sobrepase desmedidamente el margen
-      const logoW = Math.min(targetW, badgeW * 0.9);
-      const logoH = (logoImg.height / logoImg.width) * logoW;
+      const logoW = targetW;
+      const logoH = targetH;
 
       // Posición independiente por formato. Los valores son offsets en píxeles
       // respecto de la ubicación automática original del logo.
       const logoX = badgeX + getBrandLogoOffset(settings, formatKey, 'X');
       const logoY = logoBottomY - logoH + getBrandLogoOffset(settings, formatKey, 'Y');
 
-      creativeStackMinX = Math.min(creativeStackMinX, logoX);
-      creativeStackMinY = Math.min(creativeStackMinY, logoY);
-      creativeStackMaxX = Math.max(creativeStackMaxX, logoX + logoW);
+      brandLogoBounds = {
+        x: logoX,
+        y: logoY,
+        width: logoW,
+        height: logoH
+      };
 
       ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
       ctx.shadowBlur = 8;
@@ -730,6 +737,7 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   const hitPadding = Math.round(24 * gScale);
   return {
+    brandLogoBounds,
     creativeStackBounds: {
       x: creativeStackMinX - hitPadding,
       y: creativeStackMinY - hitPadding,

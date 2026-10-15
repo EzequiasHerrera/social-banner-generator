@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, ArrowUpDown, MoveHorizontal, CheckSquare, Square } from 'lucide-react';
+import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, MoveHorizontal, CheckSquare, Square } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 import { AccordionCard } from './AccordionCard';
 
@@ -231,54 +231,10 @@ export const Sidebar = ({
         {/* TAB 3: AJUSTES & MEDIDAS */}
         {activeTab === 'STYLE' && (
           <div className="tab-pane">
-            {/* Espaciado del Logo de Marca */}
-            <AccordionCard
-              title="Espaciado de Logo de Marca"
-              icon={<ArrowUpDown size={16} className="text-emerald-400" />}
-            >
-
-              <CheckToggle
-                checked={settings.showBrandLogo !== false}
-                onChange={() => updateSettings({ showBrandLogo: settings.showBrandLogo === false })}
-                label="Mostrar Logo de Marca"
-              />
-
-              <div className="slider-field mt-3">
-                <div className="slider-header">
-                  <label>Espacio / Gap sobre el Producto</label>
-                  <span className="slider-value">{settings.brandLogoGap} px</span>
-                </div>
-                <input
-                  type="range"
-                  min="8"
-                  max="60"
-                  value={settings.brandLogoGap}
-                  onChange={(e) => updateSettings({ brandLogoGap: Number(e.target.value) })}
-                />
-              </div>
-
-              <div className="slider-field mt-3">
-                <div className="slider-header">
-                  <label>Escala del Logo de Marca</label>
-                  <span className="slider-value">{Math.round(settings.brandLogoScale * 100)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="2.0"
-                  step="0.1"
-                  value={settings.brandLogoScale}
-                  onChange={(e) => updateSettings({ brandLogoScale: Number(e.target.value) })}
-                />
-              </div>
-
-            </AccordionCard>
-
             {/* Placa de Precio */}
             <AccordionCard
               title="Placa de Precio"
               icon={<MoveHorizontal size={16} className="text-emerald-400" />}
-              className="mt-4"
             >
 
               <div className="input-field">

@@ -540,6 +540,16 @@ body {
   order: 3;
 }
 
+.creative-stack-control-group {
+  order: 4;
+}
+
+.brand-settings-block {
+  margin-top: 0.9rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .brand-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -935,6 +945,10 @@ body {
 
 .rendered-banner-canvas.background-draggable.is-dragging-background {
   cursor: grabbing;
+}
+
+.rendered-banner-canvas.is-dragging-logo {
+  cursor: move;
 }
 
 .canvas-card-footer {
