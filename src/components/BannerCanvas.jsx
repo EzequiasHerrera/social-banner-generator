@@ -20,6 +20,7 @@ export const BannerCanvas = ({
   updateSettings
 }) => {
   const canvasRef = useRef(null);
+  const renderRequestRef = useRef(0);
   const dragRef = useRef(null);
   const renderMetadataRef = useRef(null);
   const frameRef = useRef(null);
@@ -35,16 +36,35 @@ export const BannerCanvas = ({
   const brandLogoOffsetYKey = `brandLogoOffsetY_${suffix}`;
 
   useEffect(() => {
-    if (canvasRef.current) {
-      renderBannerToCanvas(
-        canvasRef.current,
-        formatKey,
-        settings,
-        brandLogos
-      ).then((metadata) => {
-        renderMetadataRef.current = metadata;
-      });
-    }
+    if (!canvasRef.current) return undefined;
+
+    // Cada estado se renderiza primero en un Canvas aislado. Solo la solicitud
+    // más reciente se copia a la vista. Esto evita que renders asincrónicos
+    // anteriores terminen tarde y dejen “copias” o rastros durante un drag.
+    const requestId = ++renderRequestRef.current;
+    const renderCanvas = document.createElement('canvas');
+    let cancelled = false;
+
+    renderBannerToCanvas(
+      renderCanvas,
+      formatKey,
+      settings,
+      brandLogos
+    ).then((metadata) => {
+      if (cancelled || requestId !== renderRequestRef.current || !canvasRef.current) return;
+
+      const visibleCanvas = canvasRef.current;
+      visibleCanvas.width = renderCanvas.width;
+      visibleCanvas.height = renderCanvas.height;
+      const visibleContext = visibleCanvas.getContext('2d');
+      visibleContext.clearRect(0, 0, visibleCanvas.width, visibleCanvas.height);
+      visibleContext.drawImage(renderCanvas, 0, 0);
+      renderMetadataRef.current = metadata;
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [formatKey, settings, brandLogos]);
 
   useEffect(() => () => {

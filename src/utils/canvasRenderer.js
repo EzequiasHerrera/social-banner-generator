@@ -43,6 +43,8 @@ const PRICE_GRADIENT_BOTTOM = '#DAE4E7';
 // propia silueta del carácter (sin caja ni contorno exterior).
 const GASTRO_BADGE_BASE = '#00a900';
 const GASTRO_BADGE_BEVEL = '#00dc55';
+const HOGAR_BADGE_BASE = '#fd7d00';
+const HOGAR_BADGE_BEVEL = '#f8bc8b';
 
 // El + necesita más presencia visual que las letras de CocoSharp. Se amplía
 // junto con el espacio que ocupa y se eleva levemente respecto de la línea
@@ -76,9 +78,20 @@ function applyProductRunFont(ctx, run, baseFontSize) {
   ctx.font = `800 ${fontSize}px '${fontFamily}', sans-serif`;
 }
 
-function drawBeveledGlyph(ctx, character, x, y, baseFontSize, raiseEm = 0) {
+function drawBeveledGlyph(
+  ctx,
+  character,
+  x,
+  y,
+  baseFontSize,
+  raiseEm = 0,
+  baseColor = GASTRO_BADGE_BASE,
+  bevelColor = GASTRO_BADGE_BEVEL
+) {
   const metrics = ctx.measureText(character);
-  const bevelWidth = Math.max(2, Math.round(baseFontSize * 0.055));
+  // Bisel interior suave: conserva volumen sin formar una línea clara y dura
+  // alrededor de cada carácter.
+  const bevelWidth = Math.max(1, Math.round(baseFontSize * 0.024));
   const padding = bevelWidth * 3;
   const ascent = Math.ceil(metrics.actualBoundingBoxAscent || baseFontSize);
   const descent = Math.ceil(metrics.actualBoundingBoxDescent || baseFontSize * 0.2);
@@ -97,14 +110,15 @@ function drawBeveledGlyph(ctx, character, x, y, baseFontSize, raiseEm = 0) {
   const localY = padding + ascent;
 
   // Primero se crea la silueta sólida del signo.
-  glyphCtx.fillStyle = GASTRO_BADGE_BASE;
+  glyphCtx.fillStyle = baseColor;
   glyphCtx.fillText(character, localX, localY);
 
   // source-atop recorta el trazo al interior de la silueta ya creada. Así el
   // bisel ilumina el borde del carácter sin convertirse en borde exterior.
   glyphCtx.globalCompositeOperation = 'source-atop';
-  glyphCtx.strokeStyle = GASTRO_BADGE_BEVEL;
-  glyphCtx.lineWidth = bevelWidth * 2;
+  glyphCtx.globalAlpha = 0.42;
+  glyphCtx.strokeStyle = bevelColor;
+  glyphCtx.lineWidth = bevelWidth * 1.5;
   glyphCtx.lineJoin = 'round';
   glyphCtx.strokeText(character, localX, localY);
 
@@ -118,27 +132,40 @@ function drawBeveledGlyph(ctx, character, x, y, baseFontSize, raiseEm = 0) {
 
 export function parseProductRuns(text) {
   const characters = Array.from(String(text ?? ''));
-  const markerIndexes = characters
-    .map((character, index) => character === '@' ? index : -1)
-    .filter((index) => index >= 0);
-  const openings = new Set();
-  const closings = new Set();
+  const markerPairs = (marker) => {
+    const indexes = characters
+      .map((character, index) => character === marker ? index : -1)
+      .filter((index) => index >= 0);
+    const openings = new Set();
+    const closings = new Set();
+    for (let index = 0; index + 1 < indexes.length; index += 2) {
+      openings.add(indexes[index]);
+      closings.add(indexes[index + 1]);
+    }
+    return { openings, closings };
+  };
 
-  for (let index = 0; index + 1 < markerIndexes.length; index += 2) {
-    openings.add(markerIndexes[index]);
-    closings.add(markerIndexes[index + 1]);
-  }
-
+  const gastroMarkers = markerPairs('@');
+  const hogarMarkers = markerPairs('&');
   let gastroStyled = false;
+  let hogarStyled = false;
   const runs = [];
 
   characters.forEach((character, index) => {
-    if (openings.has(index)) {
+    if (gastroMarkers.openings.has(index)) {
       gastroStyled = true;
       return;
     }
-    if (closings.has(index)) {
+    if (gastroMarkers.closings.has(index)) {
       gastroStyled = false;
+      return;
+    }
+    if (hogarMarkers.openings.has(index)) {
+      hogarStyled = true;
+      return;
+    }
+    if (hogarMarkers.closings.has(index)) {
+      hogarStyled = false;
       return;
     }
 
@@ -146,7 +173,8 @@ export function parseProductRuns(text) {
       value: character,
       isNumber: /^\d$/.test(character),
       isPlus: character === '+',
-      isGastroStyled: gastroStyled || character === '+'
+      isGastroStyled: gastroStyled || character === '+',
+      isHogarStyled: hogarStyled && character !== '+'
     });
   });
 
@@ -160,14 +188,16 @@ function drawProductText(ctx, text, x, y, baseFontSize, trackingPx) {
   runs.forEach((run, index) => {
     const character = run.value;
     applyProductRunFont(ctx, run, baseFontSize);
-    if (run.isGastroStyled) {
+    if (run.isGastroStyled || run.isHogarStyled) {
       drawBeveledGlyph(
         ctx,
         character,
         cursorX,
         y,
         baseFontSize,
-        run.isPlus ? PRODUCT_PLUS_RAISE_EM : 0
+        run.isPlus ? PRODUCT_PLUS_RAISE_EM : 0,
+        run.isHogarStyled ? HOGAR_BADGE_BASE : GASTRO_BADGE_BASE,
+        run.isHogarStyled ? HOGAR_BADGE_BEVEL : GASTRO_BADGE_BEVEL
       );
     } else {
       ctx.fillText(character, cursorX, y);
@@ -197,6 +227,31 @@ const clampPercentage = (value, fallback) => {
   const safeValue = Number.isFinite(numericValue) ? numericValue : fallback;
   return Math.min(100, Math.max(0, safeValue)) / 100;
 };
+
+function drawEdgeFade(ctx, canvas, position, colorName, intensityValue) {
+  const intensity = clampPercentage(intensityValue, position === 'TOP' ? 65 : 85);
+  if (intensity <= 0) return;
+
+  const isWhite = colorName === 'WHITE';
+  const channel = isWhite ? '255, 255, 255' : '0, 0, 0';
+  const isTop = position === 'TOP';
+  const startY = isTop ? 0 : canvas.height * 0.4;
+  const endY = isTop ? canvas.height * 0.6 : canvas.height;
+  const gradient = ctx.createLinearGradient(0, startY, 0, endY);
+
+  if (isTop) {
+    gradient.addColorStop(0, `rgba(${channel}, ${intensity})`);
+    gradient.addColorStop(0.5, `rgba(${channel}, ${intensity * 0.45})`);
+    gradient.addColorStop(1, `rgba(${channel}, 0)`);
+  } else {
+    gradient.addColorStop(0, `rgba(${channel}, 0)`);
+    gradient.addColorStop(0.5, `rgba(${channel}, ${intensity * 0.47})`);
+    gradient.addColorStop(1, `rgba(${channel}, ${intensity})`);
+  }
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, startY, canvas.width, endY - startY);
+}
 
 const loadFirstAvailableImage = async (sources) => {
   for (const source of sources) {
@@ -329,15 +384,25 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   }
 
   // -------------------------------------------------------------
-  // CAPA 1.5: Gradiente negro inferior (condicional)
+  // CAPA 1.5: Fades superior e inferior (color e intensidad configurables)
   // -------------------------------------------------------------
   if (settings.showDarkGradient !== false) {
-    const darkGradient = ctx.createLinearGradient(0, canvas.height * 0.4, 0, canvas.height);
-    darkGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
-    darkGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.4)');
-    darkGradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
-    ctx.fillStyle = darkGradient;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    drawEdgeFade(
+      ctx,
+      canvas,
+      'BOTTOM',
+      settings.bottomGradientColor || 'BLACK',
+      settings.bottomGradientIntensity ?? 85
+    );
+  }
+  if (settings.showTopGradient === true) {
+    drawEdgeFade(
+      ctx,
+      canvas,
+      'TOP',
+      settings.topGradientColor || 'BLACK',
+      settings.topGradientIntensity ?? 65
+    );
   }
 
   // Determinar variante de placa y encabezado
@@ -426,11 +491,18 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   const marginX = Math.round(canvas.width * 0.06); // 6% margen izquierdo
   const bottomMargin = Math.round(canvas.height * (formatKey === 'STORY' ? 0.06 : 0.05));
   const creativeStackOffsetY = getCreativeStackOffsetY(settings, formatKey);
+  const contentAlignment = ['LEFT', 'CENTER', 'RIGHT'].includes(settings.contentAlignment)
+    ? settings.contentAlignment
+    : 'LEFT';
 
   const badgeW = Math.round((settings.badgeWidth || 460) * gScale);
   const badgeH = Math.round((settings.badgeHeight || 120) * gScale);
   const badgeY = canvas.height - bottomMargin - badgeH + creativeStackOffsetY;
-  const badgeX = marginX;
+  const badgeX = contentAlignment === 'CENTER'
+    ? Math.round((canvas.width - badgeW) / 2)
+    : contentAlignment === 'RIGHT'
+      ? canvas.width - marginX - badgeW
+      : marginX;
   const rad = Math.round((settings.badgeBorderRadius || 16) * gScale);
 
   // A) Renderizado de la Placa de Precio con bisel
@@ -507,7 +579,6 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
   // B/C) Texto "DESDE" opcional + precio dentro de la placa
   const priceFontSize = Math.round((settings.priceFontSize || 78) * gScale);
-  const priceCenterX = badgeX + (badgeW / 2);
   const priceCenterY = badgeY + (badgeH / 2) + 2;
 
   if (settings.priceText) {
@@ -527,19 +598,32 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     priceGradient.addColorStop(0, PRICE_GRADIENT_TOP);
     priceGradient.addColorStop(1, PRICE_GRADIENT_BOTTOM);
 
+    let desdeWidth = 0;
+    let desdeAscent = 0;
+    let desdeFontSize = 0;
+    const priceWidth = measureTrackedText(ctx, settings.priceText, priceTrackingPx);
+    const desdeGap = Math.round(priceFontSize * 0.12);
+
     if (settings.showDesde) {
       // DESDE y el precio forman una sola caja horizontal. Ambos apoyan su
       // borde visible superior sobre priceTopY, aunque tengan tamaños distintos.
-      const priceWidth = measureTrackedText(ctx, settings.priceText, priceTrackingPx);
-      const desdeFontSize = Math.round(priceFontSize * 0.38);
-      const desdeGap = Math.round(priceFontSize * 0.12);
+      desdeFontSize = Math.round((settings.desdeFontSize ?? 30) * gScale);
 
       ctx.font = `700 ${desdeFontSize}px '${PRICE_FONT}', sans-serif`;
       const desdeMetrics = ctx.measureText('DESDE');
-      const desdeWidth = desdeMetrics.width;
-      const desdeAscent = desdeMetrics.actualBoundingBoxAscent || (desdeFontSize * 0.78);
-      const groupStartX = priceCenterX - ((desdeWidth + desdeGap + priceWidth) / 2);
+      desdeWidth = desdeMetrics.width;
+      desdeAscent = desdeMetrics.actualBoundingBoxAscent || (desdeFontSize * 0.78);
+    }
 
+    const priceGroupWidth = priceWidth + (settings.showDesde ? desdeWidth + desdeGap : 0);
+    const priceHorizontalPadding = Math.round(24 * gScale);
+    const groupStartX = contentAlignment === 'CENTER'
+      ? badgeX + ((badgeW - priceGroupWidth) / 2)
+      : contentAlignment === 'RIGHT'
+        ? badgeX + badgeW - priceHorizontalPadding - priceGroupWidth
+        : badgeX + priceHorizontalPadding;
+
+    if (settings.showDesde) {
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = isHogar ? '#7f340c' : '#004b00';
       ctx.fillText('DESDE', groupStartX, priceTopY + desdeAscent);
@@ -556,10 +640,10 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     } else {
       ctx.textBaseline = 'alphabetic';
       ctx.fillStyle = priceGradient;
-      drawTrackedTextCentered(
+      drawTrackedTextFromX(
         ctx,
         settings.priceText,
-        priceCenterX,
+        groupStartX,
         priceBaselineY,
         priceTrackingPx
       );
@@ -598,14 +682,23 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     measureProductText(ctx, line, fittedFontSize, productTrackingPx)
   ));
 
+  const getProductLineStartX = (lineWidth) => (
+    contentAlignment === 'CENTER'
+      ? badgeX + ((badgeW - lineWidth) / 2)
+      : contentAlignment === 'RIGHT'
+        ? badgeX + badgeW - lineWidth
+        : badgeX
+  );
+
   const drawProductLines = (targetCtx) => {
     productLines.forEach((line, index) => {
       const lineY = productTextBaselineY - ((productLines.length - 1 - index) * lineHeight);
+      const lineStartX = getProductLineStartX(productLineWidths[index]);
 
       drawProductText(
         targetCtx,
         line,
-        badgeX,
+        lineStartX,
         lineY,
         fittedFontSize,
         productTrackingPx
@@ -678,11 +771,12 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   const productTopY = productVisibleBottomY - totalProductTextHeight;
   const logoBottomY = productTopY - brandLogoGap;
 
-  let creativeStackMinX = badgeX;
+  const productLineStarts = productLineWidths.map(getProductLineStartX);
+  let creativeStackMinX = Math.min(badgeX, ...productLineStarts);
   let creativeStackMinY = productTopY;
   let creativeStackMaxX = Math.max(
     badgeX + badgeW,
-    ...productLineWidths.map((width) => badgeX + width)
+    ...productLineWidths.map((width, index) => productLineStarts[index] + width)
   );
   const creativeStackMaxY = badgeY + badgeH;
   let brandLogoBounds = null;
@@ -706,7 +800,12 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
 
       // Posición independiente por formato. Los valores son offsets en píxeles
       // respecto de la ubicación automática original del logo.
-      const logoX = badgeX + getBrandLogoOffset(settings, formatKey, 'X');
+      const automaticLogoX = contentAlignment === 'CENTER'
+        ? badgeX + ((badgeW - logoW) / 2)
+        : contentAlignment === 'RIGHT'
+          ? badgeX + badgeW - logoW
+          : badgeX;
+      const logoX = automaticLogoX + getBrandLogoOffset(settings, formatKey, 'X');
       const logoY = logoBottomY - logoH + getBrandLogoOffset(settings, formatKey, 'Y');
 
       brandLogoBounds = {
@@ -756,17 +855,6 @@ function measureTrackedText(ctx, text, trackingPx) {
   );
 
   return glyphWidth + Math.max(0, characters.length - 1) * trackingPx;
-}
-
-function drawTrackedTextCentered(
-  ctx,
-  text,
-  centerX,
-  y,
-  trackingPx
-) {
-  const totalWidth = measureTrackedText(ctx, text, trackingPx);
-  drawTrackedTextFromX(ctx, text, centerX - totalWidth / 2, y, trackingPx);
 }
 
 function drawTrackedTextFromX(ctx, text, startX, y, trackingPx) {

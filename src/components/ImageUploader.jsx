@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move } from 'lucide-react';
+import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move, RotateCcw } from 'lucide-react';
 import { AccordionCard } from './AccordionCard';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -162,10 +162,76 @@ const FreeLogoScaleControl = ({ value, onChange }) => {
 };
 
 const FORMAT_SUFFIX = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' };
-// El límite anterior de ±500 px impedía recorrer una imagen ampliada. El
-// renderizador sigue deteniendo la imagen exactamente en el borde válido, pero
-// los controles ahora ofrecen recorrido suficiente para alcanzar ese borde.
-const BG_OFFSET_CONTROL_LIMIT = 10000;
+const BG_POSITION_PAD_LIMIT = 3000;
+
+const BackgroundPositionPad = ({ offsetX, offsetY, onChange, onReset }) => {
+  const padRef = useRef(null);
+  const activePointerRef = useRef(null);
+  const normalizedX = clamp(offsetX / BG_POSITION_PAD_LIMIT, -1, 1);
+  const normalizedY = clamp(offsetY / BG_POSITION_PAD_LIMIT, -1, 1);
+
+  const updateFromPointer = (event) => {
+    const bounds = padRef.current?.getBoundingClientRect();
+    if (!bounds?.width || !bounds?.height) return;
+    const xRatio = clamp((event.clientX - bounds.left) / bounds.width, 0, 1);
+    const yRatio = clamp((event.clientY - bounds.top) / bounds.height, 0, 1);
+    onChange({
+      x: Math.round(((xRatio * 2) - 1) * BG_POSITION_PAD_LIMIT),
+      y: Math.round(((yRatio * 2) - 1) * BG_POSITION_PAD_LIMIT)
+    });
+  };
+
+  const finishDrag = (event) => {
+    if (activePointerRef.current !== event.pointerId) return;
+    if (padRef.current?.hasPointerCapture(event.pointerId)) {
+      padRef.current.releasePointerCapture(event.pointerId);
+    }
+    activePointerRef.current = null;
+  };
+
+  return (
+    <div className="background-position-pad-wrap">
+      <div
+        ref={padRef}
+        className="background-position-pad"
+        onPointerDown={(event) => {
+          if (event.button !== 0) return;
+          event.preventDefault();
+          activePointerRef.current = event.pointerId;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          updateFromPointer(event);
+        }}
+        onPointerMove={(event) => {
+          if (activePointerRef.current !== event.pointerId) return;
+          event.preventDefault();
+          updateFromPointer(event);
+        }}
+        onPointerUp={finishDrag}
+        onPointerCancel={finishDrag}
+        role="application"
+        aria-label="Control bidimensional de posición de la imagen"
+      >
+        <span className="position-pad-axis position-pad-axis-x" aria-hidden="true" />
+        <span className="position-pad-axis position-pad-axis-y" aria-hidden="true" />
+        <span
+          className="position-pad-dot"
+          style={{
+            left: `${50 + (normalizedX * 50)}%`,
+            top: `${50 + (normalizedY * 50)}%`
+          }}
+          aria-hidden="true"
+        />
+      </div>
+      <div className="position-pad-footer">
+        <span>X {offsetX} · Y {offsetY}</span>
+        <button type="button" className="position-reset-button" onClick={onReset}>
+          <RotateCcw size={13} />
+          Centrar
+        </button>
+      </div>
+    </div>
+  );
+};
 
 const BgPositionControls = ({ formatKey, label, settings, updateSettings }) => {
   const suffix = FORMAT_SUFFIX[formatKey];
@@ -176,8 +242,18 @@ const BgPositionControls = ({ formatKey, label, settings, updateSettings }) => {
   return (
     <div className="bg-position-controls">
       <span className="position-controls-label">{label}</span>
-      <NumericRangeControl label="Posición X" value={offsetX} min={-BG_OFFSET_CONTROL_LIMIT} max={BG_OFFSET_CONTROL_LIMIT} unit=" px" onChange={(nextValue) => updateSettings({ [`bgOffsetX_${suffix}`]: nextValue })} />
-      <NumericRangeControl label="Posición Y" value={offsetY} min={-BG_OFFSET_CONTROL_LIMIT} max={BG_OFFSET_CONTROL_LIMIT} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgOffsetY_${suffix}`]: nextValue })} />
+      <BackgroundPositionPad
+        offsetX={offsetX}
+        offsetY={offsetY}
+        onChange={({ x, y }) => updateSettings({
+          [`bgOffsetX_${suffix}`]: x,
+          [`bgOffsetY_${suffix}`]: y
+        })}
+        onReset={() => updateSettings({
+          [`bgOffsetX_${suffix}`]: 0,
+          [`bgOffsetY_${suffix}`]: 0
+        })}
+      />
       <NumericRangeControl label="Escala" value={Math.max(1, scale)} min={1} max={3} step={0.01} unit="x" className="mt-3" onChange={(nextValue) => updateSettings({ [`bgScale_${suffix}`]: nextValue })} />
     </div>
   );

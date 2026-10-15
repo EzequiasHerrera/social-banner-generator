@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, MoveHorizontal, CheckSquare, Square } from 'lucide-react';
+import { Type, DollarSign, Sliders, Image as ImageIcon, Sparkles, Layers, CheckSquare, Square, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { ImageUploader } from './ImageUploader';
 import { AccordionCard } from './AccordionCard';
 
@@ -146,7 +146,7 @@ export const Sidebar = ({
                 <span className="helper-text">
                   * Presioná ENTER para definir cada línea. El programa no dividirá el texto ni reducirá su tamaño automáticamente.
                   El carácter + adopta automáticamente el relleno y bisel verde de la placa GASTRO.
-                  Para aplicar ese estilo a un texto sin cambiar su tipografía, escribilo entre arrobas: @INCREÍBLE@.
+                  Para aplicar verde Gastro sin cambiar la tipografía, escribilo entre arrobas: @INCREÍBLE@. Para aplicar naranja Hogar, usá ampersands: {'&OFERTA&'}.
                 </span>
               </div>
 
@@ -181,12 +181,36 @@ export const Sidebar = ({
 
             </AccordionCard>
 
-            {/* 3. Valor de Precio */}
+            {/* 3. Placa y Precio: todos sus ajustes reunidos */}
             <AccordionCard
-              title="Texto de Precio"
+              title="Placa y Precio"
               icon={<DollarSign size={16} className="text-emerald-400" />}
               className="mt-4"
             >
+
+              <div className="input-field">
+                <label>Alineación del Texto y Precio</label>
+                <div className="alignment-button-group" role="group" aria-label="Alineación del texto y precio">
+                  {[
+                    { value: 'LEFT', label: 'Izquierda', Icon: AlignLeft },
+                    { value: 'CENTER', label: 'Centrado', Icon: AlignCenter },
+                    { value: 'RIGHT', label: 'Derecha', Icon: AlignRight }
+                  ].map(({ value, label, Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`alignment-button ${settings.contentAlignment === value ? 'active' : ''}`}
+                      onClick={() => updateSettings({ contentAlignment: value })}
+                      title={label}
+                      aria-label={label}
+                      aria-pressed={settings.contentAlignment === value}
+                    >
+                      <Icon size={17} />
+                    </button>
+                  ))}
+                </div>
+                <span className="helper-text">Mueve la placa y el título, y alinea sus textos con el mismo criterio.</span>
+              </div>
 
               <div className="input-field">
                 <label>Precio del Producto</label>
@@ -212,32 +236,32 @@ export const Sidebar = ({
                 />
               </div>
 
-            </AccordionCard>
-          </div>
-        )}
+              <label className="checkbox-label" onClick={() => updateSettings({ showDesde: !settings.showDesde })}>
+                {settings.showDesde ? (
+                  <CheckSquare size={18} className="text-emerald-400" />
+                ) : (
+                  <Square size={18} className="text-gray-500" />
+                )}
+                <span className="font-medium text-sm">Mostrar texto “DESDE” en la placa</span>
+              </label>
 
-        {/* TAB 2: MARCAS Y FONDOS */}
-        {activeTab === 'BRAND_BG' && (
-          <div className="tab-pane">
-            <ImageUploader
-              settings={settings}
-              updateSettings={updateSettings}
-              brandLogos={brandLogos}
-              onAddCustomBrand={onAddCustomBrand}
-            />
-          </div>
-        )}
+              {settings.showDesde && (
+                <div className="slider-field mt-3">
+                  <div className="slider-header">
+                    <label>Tamaño del Texto “DESDE”</label>
+                    <span className="slider-value">{settings.desdeFontSize ?? 30} px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={settings.desdeFontSize ?? 30}
+                    onChange={(e) => updateSettings({ desdeFontSize: Number(e.target.value) })}
+                  />
+                </div>
+              )}
 
-        {/* TAB 3: AJUSTES & MEDIDAS */}
-        {activeTab === 'STYLE' && (
-          <div className="tab-pane">
-            {/* Placa de Precio */}
-            <AccordionCard
-              title="Placa de Precio"
-              icon={<MoveHorizontal size={16} className="text-emerald-400" />}
-            >
-
-              <div className="input-field">
+              <div className="input-field mt-3">
                 <label>Variante de Placa</label>
                 <select
                   value={settings.badgeVariant}
@@ -247,12 +271,6 @@ export const Sidebar = ({
                   <option value="HOGAR">HOGAR (Naranja #fd7d00 + bisel #f8bc8b)</option>
                 </select>
               </div>
-
-              <CheckToggle
-                checked={settings.showDesde}
-                onChange={() => updateSettings({ showDesde: !settings.showDesde })}
-                label='Mostrar texto "DESDE" en la placa'
-              />
 
               <div className="slider-field mt-3">
                 <div className="slider-header">
@@ -296,20 +314,99 @@ export const Sidebar = ({
                   onChange={(e) => updateSettings({ badgeShadowIntensity: Number(e.target.value) })}
                 />
               </div>
-            </AccordionCard>
 
+            </AccordionCard>
+          </div>
+        )}
+
+        {/* TAB 2: MARCAS Y FONDOS */}
+        {activeTab === 'BRAND_BG' && (
+          <div className="tab-pane">
+            <ImageUploader
+              settings={settings}
+              updateSettings={updateSettings}
+              brandLogos={brandLogos}
+              onAddCustomBrand={onAddCustomBrand}
+            />
+          </div>
+        )}
+
+        {/* TAB 3: AJUSTES & MEDIDAS */}
+        {activeTab === 'STYLE' && (
+          <div className="tab-pane">
             {/* Gradient y Escala Global */}
             <AccordionCard
               title="Efectos y Escala"
               icon={<Layers size={16} className="text-emerald-400" />}
-              className="mt-4"
             >
 
               <CheckToggle
                 checked={settings.showDarkGradient !== false}
                 onChange={() => updateSettings({ showDarkGradient: !settings.showDarkGradient })}
-                label="Gradient Negro Inferior sobre imagen"
+                label="Mostrar Fade Inferior"
               />
+
+              {settings.showDarkGradient !== false && (
+                <div className="fade-settings-block">
+                  <div className="input-field">
+                    <label>Color del Fade Inferior</label>
+                    <select
+                      value={settings.bottomGradientColor || 'BLACK'}
+                      onChange={(e) => updateSettings({ bottomGradientColor: e.target.value })}
+                    >
+                      <option value="BLACK">Negro</option>
+                      <option value="WHITE">Blanco</option>
+                    </select>
+                  </div>
+                  <div className="slider-field">
+                    <div className="slider-header">
+                      <label>Intensidad Inferior</label>
+                      <span className="slider-value">{settings.bottomGradientIntensity ?? 85}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={settings.bottomGradientIntensity ?? 85}
+                      onChange={(e) => updateSettings({ bottomGradientIntensity: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <CheckToggle
+                checked={settings.showTopGradient === true}
+                onChange={() => updateSettings({ showTopGradient: settings.showTopGradient !== true })}
+                label="Mostrar Fade Superior"
+              />
+
+              {settings.showTopGradient === true && (
+                <div className="fade-settings-block">
+                  <div className="input-field">
+                    <label>Color del Fade Superior</label>
+                    <select
+                      value={settings.topGradientColor || 'BLACK'}
+                      onChange={(e) => updateSettings({ topGradientColor: e.target.value })}
+                    >
+                      <option value="BLACK">Negro</option>
+                      <option value="WHITE">Blanco</option>
+                    </select>
+                  </div>
+                  <div className="slider-field">
+                    <div className="slider-header">
+                      <label>Intensidad Superior</label>
+                      <span className="slider-value">{settings.topGradientIntensity ?? 65}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={settings.topGradientIntensity ?? 65}
+                      onChange={(e) => updateSettings({ topGradientIntensity: Number(e.target.value) })}
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="slider-field mt-3">
                 <div className="slider-header">

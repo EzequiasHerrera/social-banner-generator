@@ -102,6 +102,10 @@ export const DEFAULT_SETTINGS = {
   priceFontSize: 78,
   priceFontFamily: 'Inter',
   priceTextColor: '#FEFEFE',
+  desdeFontSize: 30,
+
+  // Alineación conjunta del nombre del producto y la placa/precio
+  contentAlignment: 'LEFT',      // 'LEFT', 'CENTER' o 'RIGHT'
 
   // Marca y Logos
   selectedBrandId: 'silcook',
@@ -129,8 +133,13 @@ export const DEFAULT_SETTINGS = {
   badgeShadowIntensity: 70,      // 0 a 100; intensidad de sombra exterior
   showDesde: false,              // Mostrar texto "DESDE" dentro de la placa
 
-  // Gradient negro inferior
+  // Fades superior e inferior sobre la imagen
   showDarkGradient: true,
+  bottomGradientColor: 'BLACK',
+  bottomGradientIntensity: 85,
+  showTopGradient: false,
+  topGradientColor: 'BLACK',
+  topGradientIntensity: 65,
 
   // Posición y escala de imagen de fondo por formato
   bgOffsetX_45: 0,
