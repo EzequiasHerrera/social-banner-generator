@@ -6,6 +6,10 @@ import { renderBannerToCanvas, CANVAS_SPECIFICATIONS } from '../utils/canvasRend
 // Este valor solo evita que el control numérico crezca indefinidamente y debe
 // ser suficientemente amplio para recorrer imágenes escaladas hasta 3x.
 const BG_OFFSET_CONTROL_LIMIT = 10000;
+// Distancia visual (en píxeles de pantalla) dentro de la que el centro del
+// logo se pega magnéticamente al eje del formato. Al convertirla a píxeles
+// reales del Canvas, la sensación se mantiene igual con cualquier zoom.
+const LOGO_SNAP_THRESHOLD_CLIENT_PX = 14;
 
 export const BannerCanvas = ({
   formatKey,
@@ -21,6 +25,7 @@ export const BannerCanvas = ({
   const frameRef = useRef(null);
   const pendingOffsetsRef = useRef(null);
   const [dragMode, setDragMode] = useState(null);
+  const [snapGuides, setSnapGuides] = useState({ vertical: false, horizontal: false });
   const spec = CANVAS_SPECIFICATIONS[formatKey] || CANVAS_SPECIFICATIONS['4:5'];
   const suffix = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' }[formatKey];
   const offsetXKey = `bgOffsetX_${suffix}`;
@@ -93,6 +98,8 @@ export const BannerCanvas = ({
       startCreativeStackOffsetY: Number(settings[creativeStackOffsetYKey]) || 0,
       startBrandLogoOffsetX: Number(settings[brandLogoOffsetXKey]) || 0,
       startBrandLogoOffsetY: Number(settings[brandLogoOffsetYKey]) || 0,
+      startBrandLogoCenterX: logoBounds ? logoBounds.x + (logoBounds.width / 2) : null,
+      startBrandLogoCenterY: logoBounds ? logoBounds.y + (logoBounds.height / 2) : null,
       canvasPixelsPerClientX: canvas.width / bounds.width,
       canvasPixelsPerClientY: canvas.height / bounds.height,
       mode: isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND')
@@ -106,14 +113,37 @@ export const BannerCanvas = ({
 
     event.preventDefault();
     if (drag.mode === 'LOGO') {
+      let deltaX = (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX;
+      let deltaY = (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY;
+      const verticalThreshold = LOGO_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientX;
+      const horizontalThreshold = LOGO_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientY;
+      const shouldSnapVertical = Math.abs(
+        (drag.startBrandLogoCenterX + deltaX) - (canvasRef.current.width / 2)
+      ) <= verticalThreshold;
+      const shouldSnapHorizontal = Math.abs(
+        (drag.startBrandLogoCenterY + deltaY) - (canvasRef.current.height / 2)
+      ) <= horizontalThreshold;
+
+      if (shouldSnapVertical) {
+        deltaX = (canvasRef.current.width / 2) - drag.startBrandLogoCenterX;
+      }
+      if (shouldSnapHorizontal) {
+        deltaY = (canvasRef.current.height / 2) - drag.startBrandLogoCenterY;
+      }
+
+      setSnapGuides((currentGuides) => (
+        currentGuides.vertical === shouldSnapVertical &&
+        currentGuides.horizontal === shouldSnapHorizontal
+          ? currentGuides
+          : { vertical: shouldSnapVertical, horizontal: shouldSnapHorizontal }
+      ));
+
       pendingOffsetsRef.current = {
         [brandLogoOffsetXKey]: Math.round(
-          drag.startBrandLogoOffsetX +
-          (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
+          drag.startBrandLogoOffsetX + deltaX
         ),
         [brandLogoOffsetYKey]: Math.round(
-          drag.startBrandLogoOffsetY +
-          (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
+          drag.startBrandLogoOffsetY + deltaY
         )
       };
     } else if (drag.mode === 'STACK') {
@@ -154,6 +184,7 @@ export const BannerCanvas = ({
     }
     dragRef.current = null;
     setDragMode(null);
+    setSnapGuides({ vertical: false, horizontal: false });
   };
 
   return (
@@ -175,17 +206,25 @@ export const BannerCanvas = ({
       </div>
 
       <div className="canvas-viewport" style={{ zoom: zoomScale }}>
-        <canvas
-          ref={canvasRef}
-          width={spec.width}
-          height={spec.height}
-          className={`rendered-banner-canvas background-draggable ${dragMode === 'BACKGROUND' ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''} ${dragMode === 'LOGO' ? 'is-dragging-logo' : ''}`}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={finishBackgroundDrag}
-          onPointerCancel={finishBackgroundDrag}
-          title="Arrastrá el logo libremente, el conjunto creativo en vertical o el fondo para reencuadrarlo"
-        />
+        <div className="canvas-stage">
+          <canvas
+            ref={canvasRef}
+            width={spec.width}
+            height={spec.height}
+            className={`rendered-banner-canvas background-draggable ${dragMode === 'BACKGROUND' ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''} ${dragMode === 'LOGO' ? 'is-dragging-logo' : ''}`}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={finishBackgroundDrag}
+            onPointerCancel={finishBackgroundDrag}
+            title="Arrastrá el logo libremente, el conjunto creativo en vertical o el fondo para reencuadrarlo"
+          />
+          {snapGuides.vertical && (
+            <span className="logo-snap-guide logo-snap-guide-vertical" aria-hidden="true" />
+          )}
+          {snapGuides.horizontal && (
+            <span className="logo-snap-guide logo-snap-guide-horizontal" aria-hidden="true" />
+          )}
+        </div>
       </div>
 
       <div className="canvas-card-footer">

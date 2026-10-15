@@ -930,6 +930,12 @@ body {
   transform-origin: top center;
 }
 
+.canvas-stage {
+  position: relative;
+  display: inline-flex;
+  line-height: 0;
+}
+
 .rendered-banner-canvas {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   border-radius: 6px;
@@ -949,6 +955,33 @@ body {
 
 .rendered-banner-canvas.is-dragging-logo {
   cursor: move;
+}
+
+.logo-snap-guide {
+  position: absolute;
+  z-index: 4;
+  display: block;
+  pointer-events: none;
+  background: #00dc55;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.32),
+    0 0 8px rgba(0, 220, 85, 0.9);
+}
+
+.logo-snap-guide-vertical {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-1px);
+}
+
+.logo-snap-guide-horizontal {
+  right: 0;
+  left: 0;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-1px);
 }
 
 .canvas-card-footer {
