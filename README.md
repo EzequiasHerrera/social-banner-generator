@@ -36,9 +36,9 @@ I built the application independently, including the React interface, canvas ren
 
 ## Live Demo
 
-The application was deployed to Netlify. Add the public URL here if you want it displayed:
+The application was deployed to Netlify.
 
-`[Add live demo URL]`
+https://publigenerator-kitchentools.netlify.app/
 
 ## Run Locally
 
