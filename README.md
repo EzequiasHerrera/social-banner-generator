@@ -1,16 +1,50 @@
-# React + Vite
+# Social Banner Generator
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A React application for creating branded product banners in three social-media formats, with live previews and export tools.
 
-Currently, two official plugins are available:
+## Overview
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The Social Banner Generator reduces repetitive manual image editing by letting users configure a banner once and export assets in the required formats.
 
-## React Compiler
+## Features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Three predefined banner formats
+- Live preview while editing
+- Image upload and customizable layouts
+- Custom HTML5 Canvas renderer
+- Text rendering with mixed fonts, shadows, and bevel effects
+- High-resolution PNG export
+- ZIP export for all generated formats
+- Persistent settings using `localStorage`
 
-## Expanding the Oxlint configuration
+## Tech Stack
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+- React 19
+- JavaScript
+- Vite
+- HTML5 Canvas
+- `localStorage`
+- ZIP export tooling
+
+## Implementation Highlights
+
+The rendering logic uses a custom Canvas-based renderer to produce the final image rather than relying only on DOM screenshots. The interface separates editing controls from preview and export behavior.
+
+## My Contribution
+
+I built the application independently, including the React interface, canvas rendering logic, configurable layouts, preview flow, and export features.
+
+## Live Demo
+
+The application was deployed to Netlify. Add the public URL here if you want it displayed:
+
+`[Add live demo URL]`
+
+## Run Locally
+
+```bash
+npm install
+npm run dev
+```
+
+Use the scripts in `package.json` if the commands differ in your version of the repository.
