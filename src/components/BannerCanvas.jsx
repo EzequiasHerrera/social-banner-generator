@@ -7,9 +7,9 @@ import { renderBannerToCanvas, CANVAS_SPECIFICATIONS } from '../utils/canvasRend
 // ser suficientemente amplio para recorrer imágenes escaladas hasta 3x.
 const BG_OFFSET_CONTROL_LIMIT = 10000;
 // Distancia visual (en píxeles de pantalla) dentro de la que el centro del
-// logo se pega magnéticamente al eje del formato. Al convertirla a píxeles
+// elemento se pega magnéticamente al eje del formato. Al convertirla a píxeles
 // reales del Canvas, la sensación se mantiene igual con cualquier zoom.
-const LOGO_SNAP_THRESHOLD_CLIENT_PX = 14;
+const CENTER_SNAP_THRESHOLD_CLIENT_PX = 14;
 
 export const BannerCanvas = ({
   formatKey,
@@ -34,8 +34,6 @@ export const BannerCanvas = ({
   const creativeStackOffsetYKey = `creativeStackOffsetY_${suffix}`;
   const brandLogoOffsetXKey = `brandLogoOffsetX_${suffix}`;
   const brandLogoOffsetYKey = `brandLogoOffsetY_${suffix}`;
-  const freeImageOffsetXKey = `freeImageOffsetX_${suffix}`;
-  const freeImageOffsetYKey = `freeImageOffsetY_${suffix}`;
 
   useEffect(() => {
     if (!canvasRef.current) return undefined;
@@ -91,12 +89,13 @@ export const BannerCanvas = ({
     const canvasY = (event.clientY - bounds.top) * (canvas.height / bounds.height);
     const stackBounds = renderMetadataRef.current?.creativeStackBounds;
     const logoBounds = renderMetadataRef.current?.brandLogoBounds;
-    const freeImageBounds = renderMetadataRef.current?.freeImageBounds;
-    const isInsideFreeImage = Boolean(
-      settings.showFreeImage !== false && settings.freeImageUrl && freeImageBounds &&
-      canvasX >= freeImageBounds.x && canvasX <= freeImageBounds.x + freeImageBounds.width &&
-      canvasY >= freeImageBounds.y && canvasY <= freeImageBounds.y + freeImageBounds.height
-    );
+    const freeImageBounds = renderMetadataRef.current?.freeImageBounds || [];
+    // Se busca desde el final porque la última capa se dibuja encima.
+    const hitFreeImage = [...freeImageBounds].reverse().find(imageBounds => (
+      canvasX >= imageBounds.x && canvasX <= imageBounds.x + imageBounds.width &&
+      canvasY >= imageBounds.y && canvasY <= imageBounds.y + imageBounds.height
+    ));
+    const isInsideFreeImage = Boolean(hitFreeImage);
     const isInsideLogo = Boolean(
       settings.showBrandLogo !== false &&
       logoBounds &&
@@ -128,12 +127,25 @@ export const BannerCanvas = ({
       startBrandLogoOffsetY: Number(settings[brandLogoOffsetYKey]) || 0,
       startBrandLogoCenterX: logoBounds ? logoBounds.x + (logoBounds.width / 2) : null,
       startBrandLogoCenterY: logoBounds ? logoBounds.y + (logoBounds.height / 2) : null,
-      startFreeImageOffsetX: Number(settings[freeImageOffsetXKey]) || 0,
-      startFreeImageOffsetY: Number(settings[freeImageOffsetYKey]) || 0,
+      freeImageId: hitFreeImage?.id || null,
+      startFreeImages: Array.isArray(settings.freeImages)
+        ? settings.freeImages.map(image => ({ ...image }))
+        : [],
+      startFreeImageOffsetX: hitFreeImage
+        ? Number(settings.freeImages?.find(image => image.id === hitFreeImage.id)?.[`offsetX_${suffix}`]) || 0
+        : 0,
+      startFreeImageOffsetY: hitFreeImage
+        ? Number(settings.freeImages?.find(image => image.id === hitFreeImage.id)?.[`offsetY_${suffix}`]) || 0
+        : 0,
+      startFreeImageCenterX: hitFreeImage ? hitFreeImage.x + (hitFreeImage.width / 2) : null,
+      startFreeImageCenterY: hitFreeImage ? hitFreeImage.y + (hitFreeImage.height / 2) : null,
       canvasPixelsPerClientX: canvas.width / bounds.width,
       canvasPixelsPerClientY: canvas.height / bounds.height,
       mode: isInsideFreeImage ? 'FREE_IMAGE' : (isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND'))
     };
+    if (hitFreeImage && settings.selectedFreeImageId !== hitFreeImage.id) {
+      updateSettings({ selectedFreeImageId: hitFreeImage.id });
+    }
     setDragMode(isInsideFreeImage ? 'FREE_IMAGE' : (isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND')));
   };
 
@@ -143,19 +155,48 @@ export const BannerCanvas = ({
 
     event.preventDefault();
     if (drag.mode === 'FREE_IMAGE') {
+      let deltaX = (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX;
+      let deltaY = (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY;
+      const verticalThreshold = CENTER_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientX;
+      const horizontalThreshold = CENTER_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientY;
+      const shouldSnapVertical = Math.abs(
+        (drag.startFreeImageCenterX + deltaX) - (canvasRef.current.width / 2)
+      ) <= verticalThreshold;
+      const shouldSnapHorizontal = Math.abs(
+        (drag.startFreeImageCenterY + deltaY) - (canvasRef.current.height / 2)
+      ) <= horizontalThreshold;
+
+      if (shouldSnapVertical) {
+        deltaX = (canvasRef.current.width / 2) - drag.startFreeImageCenterX;
+      }
+      if (shouldSnapHorizontal) {
+        deltaY = (canvasRef.current.height / 2) - drag.startFreeImageCenterY;
+      }
+
+      setSnapGuides((currentGuides) => (
+        currentGuides.vertical === shouldSnapVertical &&
+        currentGuides.horizontal === shouldSnapHorizontal
+          ? currentGuides
+          : { vertical: shouldSnapVertical, horizontal: shouldSnapHorizontal }
+      ));
+
       pendingOffsetsRef.current = {
-        [freeImageOffsetXKey]: Math.round(
-          drag.startFreeImageOffsetX + (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
-        ),
-        [freeImageOffsetYKey]: Math.round(
-          drag.startFreeImageOffsetY + (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
-        )
+        freeImages: drag.startFreeImages.map(image => (
+          image.id === drag.freeImageId
+            ? {
+                ...image,
+                [`offsetX_${suffix}`]: Math.round(drag.startFreeImageOffsetX + deltaX),
+                [`offsetY_${suffix}`]: Math.round(drag.startFreeImageOffsetY + deltaY)
+              }
+            : image
+        )),
+        selectedFreeImageId: drag.freeImageId
       };
     } else if (drag.mode === 'LOGO') {
       let deltaX = (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX;
       let deltaY = (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY;
-      const verticalThreshold = LOGO_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientX;
-      const horizontalThreshold = LOGO_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientY;
+      const verticalThreshold = CENTER_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientX;
+      const horizontalThreshold = CENTER_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientY;
       const shouldSnapVertical = Math.abs(
         (drag.startBrandLogoCenterX + deltaX) - (canvasRef.current.width / 2)
       ) <= verticalThreshold;

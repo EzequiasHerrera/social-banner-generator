@@ -290,13 +290,6 @@ function getBrandLogoOffset(settings, formatKey, axis) {
   return Number.isFinite(value) ? value : 0;
 }
 
-function getFreeImageOffset(settings, formatKey, axis) {
-  const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
-  const suffix = keyMap[formatKey] || '45';
-  const value = Number(settings[`freeImageOffset${axis}_${suffix}`]);
-  return Number.isFinite(value) ? value : 0;
-}
-
 function getCreativeStackOffsetY(settings, formatKey) {
   const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
   const suffix = keyMap[formatKey] || '45';
@@ -842,23 +835,37 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
   // CAPA 5: Imagen decorativa libre. Se dibuja al final para que funcione
   // como sticker/detalle y pueda colocarse sobre cualquier elemento.
   // -------------------------------------------------------------
-  let freeImageBounds = null;
-  if (settings.showFreeImage !== false && settings.freeImageUrl) {
-    const freeImage = await loadImage(settings.freeImageUrl);
-    if (freeImage) {
-      const configuredScale = Number(settings.freeImageScale);
-      const freeScale = Number.isFinite(configuredScale) && configuredScale > 0
-        ? configuredScale
-        : 1;
-      const targetH = 240 * freeScale;
-      const targetW = (freeImage.width / freeImage.height) * targetH;
-      const freeX = ((canvas.width - targetW) / 2) + getFreeImageOffset(settings, formatKey, 'X');
-      const freeY = ((canvas.height - targetH) / 2) + getFreeImageOffset(settings, formatKey, 'Y');
+  const suffix = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' }[formatKey] || '45';
+  const configuredFreeImages = Array.isArray(settings.freeImages) ? settings.freeImages : [];
+  const loadedFreeImages = await Promise.all(configuredFreeImages.map(async image => ({
+    config: image,
+    element: image.visible === false ? null : await loadImage(image.url)
+  })));
+  const freeImageBounds = [];
 
-      freeImageBounds = { x: freeX, y: freeY, width: targetW, height: targetH };
-      ctx.drawImage(freeImage, freeX, freeY, targetW, targetH);
-    }
-  }
+  loadedFreeImages.forEach(({ config, element }) => {
+    if (!element) return;
+
+    const configuredScale = Number(config[`scale_${suffix}`]);
+    const freeScale = Number.isFinite(configuredScale) && configuredScale > 0
+      ? configuredScale
+      : 1;
+    const offsetX = Number(config[`offsetX_${suffix}`]) || 0;
+    const offsetY = Number(config[`offsetY_${suffix}`]) || 0;
+    const targetH = 240 * freeScale;
+    const targetW = (element.width / element.height) * targetH;
+    const freeX = ((canvas.width - targetW) / 2) + offsetX;
+    const freeY = ((canvas.height - targetH) / 2) + offsetY;
+
+    freeImageBounds.push({
+      id: config.id,
+      x: freeX,
+      y: freeY,
+      width: targetW,
+      height: targetH
+    });
+    ctx.drawImage(element, freeX, freeY, targetW, targetH);
+  });
 
   const hitPadding = Math.round(24 * gScale);
   return {

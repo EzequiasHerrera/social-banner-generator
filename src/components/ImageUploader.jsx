@@ -161,7 +161,7 @@ const FreeLogoScaleControl = ({ value, onChange }) => {
   );
 };
 
-const FreeImageScaleControl = ({ value, onChange }) => {
+const FreeImageScaleControl = ({ label, value, onChange }) => {
   const safeScale = Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
   const percentage = safeScale * 100;
   const [draftValue, setDraftValue] = useState(String(Math.round(percentage)));
@@ -181,7 +181,7 @@ const FreeImageScaleControl = ({ value, onChange }) => {
   return (
     <div className="slider-field mt-3">
       <div className="slider-header">
-        <label>Tamaño de la imagen libre</label>
+        <label>{label}</label>
         <span className="slider-value">{Math.round(percentage)}%</span>
       </div>
       <div className="range-number-row">
@@ -324,17 +324,22 @@ const BrandLogoPositionControls = ({ formatKey, label, settings, updateSettings 
   );
 };
 
-const FreeImagePositionControls = ({ formatKey, label, settings, updateSettings }) => {
+const FreeImageTransformControls = ({ formatKey, label, image, onChange }) => {
   const suffix = FORMAT_SUFFIX[formatKey];
-  const offsetX = settings[`freeImageOffsetX_${suffix}`] ?? 0;
-  const offsetY = settings[`freeImageOffsetY_${suffix}`] ?? 0;
+  const offsetXKey = `offsetX_${suffix}`;
+  const offsetYKey = `offsetY_${suffix}`;
+  const scaleKey = `scale_${suffix}`;
+  const offsetX = image[offsetXKey] ?? 0;
+  const offsetY = image[offsetYKey] ?? 0;
+  const scale = image[scaleKey] ?? 1;
 
   return (
     <div className="bg-position-controls">
       <span className="position-controls-label">{label}</span>
-      <NumericRangeControl label="Posición X" value={offsetX} min={-10000} max={10000} unit=" px" onChange={(nextValue) => updateSettings({ [`freeImageOffsetX_${suffix}`]: nextValue })} />
-      <NumericRangeControl label="Posición Y" value={offsetY} min={-10000} max={10000} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`freeImageOffsetY_${suffix}`]: nextValue })} />
-      <button type="button" className="position-reset-button mt-2" onClick={() => updateSettings({ [`freeImageOffsetX_${suffix}`]: 0, [`freeImageOffsetY_${suffix}`]: 0 })}>
+      <FreeImageScaleControl label={`Tamaño ${formatKey}`} value={scale} onChange={(nextValue) => onChange({ [scaleKey]: nextValue })} />
+      <NumericRangeControl label="Posición X" value={offsetX} min={-10000} max={10000} unit=" px" className="mt-3" onChange={(nextValue) => onChange({ [offsetXKey]: nextValue })} />
+      <NumericRangeControl label="Posición Y" value={offsetY} min={-10000} max={10000} unit=" px" className="mt-3" onChange={(nextValue) => onChange({ [offsetYKey]: nextValue })} />
+      <button type="button" className="position-reset-button mt-2" onClick={() => onChange({ [offsetXKey]: 0, [offsetYKey]: 0 })}>
         <RotateCcw size={13} /> Centrar
       </button>
     </div>
@@ -374,6 +379,28 @@ export const ImageUploader = ({
   const freeImageInputRef = useRef(null);
   const dragDepthRef = useRef({});
   const [activeDropZone, setActiveDropZone] = useState(null);
+  const freeImages = Array.isArray(settings.freeImages) ? settings.freeImages : [];
+  const selectedFreeImage = freeImages.find(image => image.id === settings.selectedFreeImageId)
+    || freeImages[0]
+    || null;
+
+  const updateFreeImage = (imageId, partialChanges) => {
+    updateSettings({
+      freeImages: freeImages.map(image => (
+        image.id === imageId ? { ...image, ...partialChanges } : image
+      ))
+    });
+  };
+
+  const removeFreeImage = (imageId) => {
+    const remainingImages = freeImages.filter(image => image.id !== imageId);
+    updateSettings({
+      freeImages: remainingImages,
+      selectedFreeImageId: settings.selectedFreeImageId === imageId
+        ? (remainingImages[0]?.id || null)
+        : settings.selectedFreeImageId
+    });
+  };
 
   // Manejador de carga de imagen de fondo por formato
   const handleBgUpload = (formatKey, file) => {
@@ -429,25 +456,38 @@ export const ImageUploader = ({
     reader.readAsDataURL(file);
   };
 
-  const handleFreeImageUpload = (file) => {
-    if (!file) return;
-    if (!isImageFile(file)) {
+  const handleFreeImagesUpload = (files) => {
+    const compatibleFiles = Array.from(files || []).filter(isImageFile);
+    if (compatibleFiles.length === 0) {
       alert('El archivo seleccionado no es una imagen compatible.');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (event) => updateSettings({
-      freeImageUrl: event.target.result,
-      showFreeImage: true,
-      freeImageScale: 1,
-      freeImageOffsetX_45: 0,
-      freeImageOffsetY_45: 0,
-      freeImageOffsetX_FEED: 0,
-      freeImageOffsetY_FEED: 0,
-      freeImageOffsetX_STORY: 0,
-      freeImageOffsetY_STORY: 0
-    });
-    reader.readAsDataURL(file);
+
+    Promise.all(compatibleFiles.map((file, index) => new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = event => resolve({
+        id: `free_${Date.now()}_${index}_${Math.random().toString(36).slice(2, 8)}`,
+        name: file.name.replace(/\.[^/.]+$/, '') || `Imagen ${freeImages.length + index + 1}`,
+        url: event.target.result,
+        visible: true,
+        scale_45: 1,
+        scale_FEED: 1,
+        scale_STORY: 1,
+        offsetX_45: 0,
+        offsetY_45: 0,
+        offsetX_FEED: 0,
+        offsetY_FEED: 0,
+        offsetX_STORY: 0,
+        offsetY_STORY: 0
+      });
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    }))).then((newImages) => {
+      updateSettings({
+        freeImages: [...freeImages, ...newImages],
+        selectedFreeImageId: newImages[newImages.length - 1].id
+      });
+    }).catch(() => alert('No se pudo leer una de las imágenes seleccionadas.'));
   };
 
   const getDropZoneProps = (zoneId, onFileDrop) => ({
@@ -587,41 +627,52 @@ export const ImageUploader = ({
       </AccordionCard>
 
       <AccordionCard
-        title="Imagen Libre / Detalle"
+        title="Imágenes Libres / Detalles"
         icon={<ImageIcon size={16} className="text-emerald-400" />}
         className="control-group free-image-control-group mt-3"
       >
-        <span className="helper-text">Cargá un sticker, sello o detalle y arrastralo directamente en cada formato. La posición se guarda por formato.</span>
-        <div className={`upload-drop-zone brand-upload-drop-zone mt-3 ${activeDropZone === 'free-image' ? 'is-dragging' : ''}`} {...getDropZoneProps('free-image', handleFreeImageUpload)}>
+        <span className="helper-text">Podés agregar varias imágenes. Seleccioná una capa para editarla y arrastrala en cada formato; las guías verdes indican el centro horizontal y vertical perfecto.</span>
+        <div className={`upload-drop-zone brand-upload-drop-zone mt-3 ${activeDropZone === 'free-image' ? 'is-dragging' : ''}`} {...getDropZoneProps('free-image', (file) => handleFreeImagesUpload([file]))}>
           <input
             type="file"
             ref={freeImageInputRef}
             accept="image/*"
+            multiple
             className="hidden"
-            onChange={(event) => { handleFreeImageUpload(event.target.files[0]); event.target.value = ''; }}
+            onChange={(event) => { handleFreeImagesUpload(event.target.files); event.target.value = ''; }}
           />
           <button type="button" className="btn-upload-brand" onClick={() => freeImageInputRef.current?.click()}>
-            <Plus size={16} /><span>{settings.freeImageUrl ? 'Reemplazar imagen libre' : 'Agregar imagen libre'}</span>
+            <Plus size={16} /><span>Agregar una o más imágenes</span>
           </button>
-          <span className="drop-zone-hint">o arrastrá una imagen acá</span>
+          <span className="drop-zone-hint">o arrastrá una imagen acá · podés seguir agregando capas</span>
         </div>
 
-        {settings.freeImageUrl && (
+        {freeImages.length > 0 && (
           <>
-            <div className="free-image-preview-row">
-              <img src={settings.freeImageUrl} alt="Detalle cargado" />
-              <label className="checkbox-label" onClick={() => updateSettings({ showFreeImage: settings.showFreeImage === false })}>
-                {settings.showFreeImage !== false ? <CheckSquare size={18} className="text-emerald-400" /> : <Square size={18} className="text-gray-500" />}
-                <span>Mostrar</span>
-              </label>
-              <button type="button" className="btn-danger-compact" onClick={() => updateSettings({ freeImageUrl: null })}><Trash2 size={14} /> Quitar</button>
+            <div className="free-image-layer-list">
+              {freeImages.map((image, index) => (
+                <div key={image.id} className={`free-image-layer-row ${selectedFreeImage?.id === image.id ? 'selected' : ''}`}>
+                  <button type="button" className="free-image-layer-select" onClick={() => updateSettings({ selectedFreeImageId: image.id })}>
+                    <img src={image.url} alt={image.name} />
+                    <span><strong>{image.name}</strong><small>Capa {index + 1}</small></span>
+                  </button>
+                  <button type="button" className="free-image-visibility" onClick={() => updateFreeImage(image.id, { visible: image.visible === false })} title={image.visible === false ? 'Mostrar imagen' : 'Ocultar imagen'}>
+                    {image.visible === false ? <Square size={17} /> : <CheckSquare size={17} />}
+                  </button>
+                  <button type="button" className="free-image-delete" onClick={() => removeFreeImage(image.id)} title={`Eliminar ${image.name}`}>
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              ))}
             </div>
-            <FreeImageScaleControl value={settings.freeImageScale} onChange={(freeImageScale) => updateSettings({ freeImageScale })} />
-            <AccordionCard title="Posición de la Imagen Libre" icon={<Move size={16} className="text-emerald-400" />} className="mt-3">
-              <FreeImagePositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
-              <FreeImagePositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
-              <FreeImagePositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
-            </AccordionCard>
+            {selectedFreeImage && (
+              <AccordionCard title={`Tamaño y Posición · ${selectedFreeImage.name}`} icon={<Move size={16} className="text-emerald-400" />} className="mt-3" defaultOpen>
+                <span className="helper-text">El tamaño y la posición son independientes en cada formato. El campo de porcentaje no tiene límite máximo.</span>
+                <FreeImageTransformControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" image={selectedFreeImage} onChange={(changes) => updateFreeImage(selectedFreeImage.id, changes)} />
+                <FreeImageTransformControls formatKey="FEED" label="Formato FEED · 1200 × 1200" image={selectedFreeImage} onChange={(changes) => updateFreeImage(selectedFreeImage.id, changes)} />
+                <FreeImageTransformControls formatKey="STORY" label="Formato STORY · 1080 × 1920" image={selectedFreeImage} onChange={(changes) => updateFreeImage(selectedFreeImage.id, changes)} />
+              </AccordionCard>
+            )}
           </>
         )}
       </AccordionCard>

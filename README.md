@@ -10,7 +10,8 @@ The Social Banner Generator reduces repetitive manual image editing by letting u
 
 - Three predefined banner formats
 - Live preview while editing
-- Image upload and customizable layouts
+- Multiple decorative image layers with independent positioning and sizing per format
+- Magnetic horizontal and vertical center guides for logos and decorative images
 - Custom HTML5 Canvas renderer
 - Text rendering with mixed fonts, shadows, and bevel effects
 - High-resolution PNG export

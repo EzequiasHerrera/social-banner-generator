@@ -675,38 +675,88 @@ body {
 
 .brand-card-delete:hover { background: rgba(127, 29, 29, 0.92); color: #fff; }
 
-.free-image-preview-row {
+.free-image-layer-list {
   margin-top: 10px;
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.free-image-layer-row {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
   border: 1px solid var(--border-color);
   border-radius: 8px;
   background: var(--bg-panel);
+  overflow: hidden;
 }
 
-.free-image-preview-row img {
-  width: 54px;
-  height: 54px;
+.free-image-layer-row.selected {
+  border-color: var(--emerald-primary);
+  box-shadow: 0 0 0 1px var(--emerald-primary);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.free-image-layer-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px;
+  border: 0;
+  background: transparent;
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+}
+
+.free-image-layer-select img {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
   object-fit: contain;
   border-radius: 5px;
   background: rgba(255, 255, 255, 0.06);
 }
 
-.free-image-preview-row .checkbox-label { margin: 0; flex: 1; }
+.free-image-layer-select span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 
-.btn-danger-compact {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 6px 8px;
-  border: 1px solid rgba(248, 113, 113, 0.45);
-  border-radius: 6px;
-  background: rgba(127, 29, 29, 0.25);
-  color: #fca5a5;
+.free-image-layer-select strong {
+  max-width: 155px;
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 0.76rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.free-image-layer-select small {
+  color: var(--text-muted);
+  font-size: 0.66rem;
+}
+
+.free-image-visibility,
+.free-image-delete {
+  width: 34px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-left: 1px solid var(--border-color);
+  background: transparent;
+  color: var(--text-muted);
   cursor: pointer;
 }
+
+.free-image-visibility:hover { color: var(--emerald-primary); background: rgba(16, 185, 129, 0.08); }
+.free-image-delete:hover { color: #fca5a5; background: rgba(127, 29, 29, 0.25); }
 
 .brand-card:hover {
   border-color: var(--emerald-primary);

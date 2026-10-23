@@ -10,7 +10,33 @@ export const loadSavedSettings = () => {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (!stored) return DEFAULT_SETTINGS;
     const parsed = JSON.parse(stored);
-    return { ...DEFAULT_SETTINGS, ...parsed };
+    let freeImages = Array.isArray(parsed.freeImages) ? parsed.freeImages : [];
+
+    // Compatibilidad con la versión que admitía una sola imagen decorativa.
+    if (freeImages.length === 0 && parsed.freeImageUrl) {
+      const legacyScale = Number(parsed.freeImageScale) > 0 ? Number(parsed.freeImageScale) : 1;
+      freeImages = [{
+        id: 'free_image_migrated',
+        name: 'Imagen libre',
+        url: parsed.freeImageUrl,
+        visible: parsed.showFreeImage !== false,
+        scale_45: legacyScale,
+        scale_FEED: legacyScale,
+        scale_STORY: legacyScale,
+        offsetX_45: Number(parsed.freeImageOffsetX_45) || 0,
+        offsetY_45: Number(parsed.freeImageOffsetY_45) || 0,
+        offsetX_FEED: Number(parsed.freeImageOffsetX_FEED) || 0,
+        offsetY_FEED: Number(parsed.freeImageOffsetY_FEED) || 0,
+        offsetX_STORY: Number(parsed.freeImageOffsetX_STORY) || 0,
+        offsetY_STORY: Number(parsed.freeImageOffsetY_STORY) || 0
+      }];
+    }
+
+    const selectedFreeImageId = freeImages.some(image => image.id === parsed.selectedFreeImageId)
+      ? parsed.selectedFreeImageId
+      : (freeImages[0]?.id || null);
+
+    return { ...DEFAULT_SETTINGS, ...parsed, freeImages, selectedFreeImageId };
   } catch (err) {
     console.warn('Error leyendo localStorage:', err);
     return DEFAULT_SETTINGS;

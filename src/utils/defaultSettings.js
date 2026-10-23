@@ -120,16 +120,10 @@ export const DEFAULT_SETTINGS = {
   brandLogoOffsetX_STORY: 0,
   brandLogoOffsetY_STORY: 0,
 
-  // Imagen decorativa libre (sticker, sello, textura o detalle adicional)
-  freeImageUrl: null,
-  showFreeImage: true,
-  freeImageScale: 1,
-  freeImageOffsetX_45: 0,
-  freeImageOffsetY_45: 0,
-  freeImageOffsetX_FEED: 0,
-  freeImageOffsetY_FEED: 0,
-  freeImageOffsetX_STORY: 0,
-  freeImageOffsetY_STORY: 0,
+  // Imágenes decorativas libres. Cada capa conserva tamaño y posición propios
+  // para 4:5, FEED y STORY.
+  freeImages: [],
+  selectedFreeImageId: null,
 
   // Desplazamiento vertical del conjunto: logo de marca + título + placa/precio
   creativeStackOffsetY_45: 0,
