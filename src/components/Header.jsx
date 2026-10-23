@@ -1,7 +1,37 @@
 import React from 'react';
-import { Layers, Download, RotateCcw, Sparkles, LayoutGrid } from 'lucide-react';
+import { Download, RotateCcw, Sparkles, Eye, PackageCheck } from 'lucide-react';
 
-export const Header = ({ activeView, setActiveView, onExportAll, onResetDefaults, isExporting }) => {
+const FORMAT_OPTIONS = [
+  { key: '4:5', label: '4:5' },
+  { key: 'FEED', label: 'FEED' },
+  { key: 'STORY', label: 'STORY' }
+];
+
+const FormatSelector = ({ title, icon, values, onChange }) => (
+  <div className="format-selector-group">
+    <span className="format-selector-label">{icon}{title}</span>
+    <div className="format-selector-buttons" role="group" aria-label={title}>
+      {FORMAT_OPTIONS.map(({ key, label }) => {
+        const selected = values?.[key] !== false;
+        return (
+          <button
+            key={key}
+            type="button"
+            className={`view-btn ${selected ? 'active' : ''}`}
+            onClick={() => onChange({ ...values, [key]: !selected })}
+            aria-pressed={selected}
+          >
+            {label}
+          </button>
+        );
+      })}
+    </div>
+  </div>
+);
+
+export const Header = ({ settings, updateSettings, onExportAll, onResetDefaults, isExporting }) => {
+  const exportCount = Object.values(settings.exportFormats || {}).filter(Boolean).length;
+
   return (
     <header className="header-bar">
       <div className="header-brand">
@@ -14,54 +44,29 @@ export const Header = ({ activeView, setActiveView, onExportAll, onResetDefaults
         </div>
       </div>
 
-      {/* Selector de Vista (Grid vs Formato Individual) */}
-      <div className="header-view-selector">
-        <button
-          className={`view-btn ${activeView === 'ALL' ? 'active' : ''}`}
-          onClick={() => setActiveView('ALL')}
-          title="Ver los 3 formatos simultáneamente"
-        >
-          <LayoutGrid size={16} />
-          <span>Todos (3)</span>
-        </button>
-        <button
-          className={`view-btn ${activeView === '4:5' ? 'active' : ''}`}
-          onClick={() => setActiveView('4:5')}
-        >
-          <span>4:5</span>
-        </button>
-        <button
-          className={`view-btn ${activeView === 'FEED' ? 'active' : ''}`}
-          onClick={() => setActiveView('FEED')}
-        >
-          <span>FEED (1:1)</span>
-        </button>
-        <button
-          className={`view-btn ${activeView === 'STORY' ? 'active' : ''}`}
-          onClick={() => setActiveView('STORY')}
-        >
-          <span>STORY</span>
-        </button>
+      <div className="header-view-selector independent-format-selectors">
+        <FormatSelector
+          title="Ver"
+          icon={<Eye size={14} />}
+          values={settings.visibleFormats}
+          onChange={(visibleFormats) => updateSettings({ visibleFormats })}
+        />
+        <FormatSelector
+          title="Exportar"
+          icon={<PackageCheck size={14} />}
+          values={settings.exportFormats}
+          onChange={(exportFormats) => updateSettings({ exportFormats })}
+        />
       </div>
 
-      {/* Botones de Acción Global */}
       <div className="header-actions">
-        <button 
-          className="btn-secondary" 
-          onClick={onResetDefaults}
-          title="Restablecer configuraciones, espacados y fuentes a valores predeterminados"
-        >
+        <button className="btn-secondary" onClick={onResetDefaults} title="Restablecer configuraciones">
           <RotateCcw size={16} />
-          <span>Restablecer a Default</span>
+          <span>Restablecer</span>
         </button>
-
-        <button 
-          className="btn-primary" 
-          onClick={onExportAll} 
-          disabled={isExporting}
-        >
+        <button className="btn-primary" onClick={onExportAll} disabled={isExporting || exportCount === 0}>
           <Download size={16} />
-          <span>{isExporting ? 'Exportando ZIP...' : 'Exportar Todo (.ZIP)'}</span>
+          <span>{isExporting ? 'Exportando ZIP...' : `Exportar seleccionados (${exportCount})`}</span>
         </button>
       </div>
     </header>

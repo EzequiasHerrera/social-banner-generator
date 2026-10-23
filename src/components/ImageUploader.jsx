@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move, RotateCcw } from 'lucide-react';
+import { Upload, CheckSquare, Square, Image as ImageIcon, Plus, Tag, Move, RotateCcw, Trash2 } from 'lucide-react';
 import { AccordionCard } from './AccordionCard';
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -161,6 +161,57 @@ const FreeLogoScaleControl = ({ value, onChange }) => {
   );
 };
 
+const FreeImageScaleControl = ({ value, onChange }) => {
+  const safeScale = Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : 1;
+  const percentage = safeScale * 100;
+  const [draftValue, setDraftValue] = useState(String(Math.round(percentage)));
+  const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (!isEditingRef.current) setDraftValue(String(Math.round(percentage)));
+  }, [percentage]);
+
+  const commitValue = (rawValue) => {
+    const numericValue = Number(rawValue);
+    const normalized = Number.isFinite(numericValue) && numericValue > 0 ? numericValue : percentage;
+    setDraftValue(String(normalized));
+    onChange(normalized / 100);
+  };
+
+  return (
+    <div className="slider-field mt-3">
+      <div className="slider-header">
+        <label>Tamaño de la imagen libre</label>
+        <span className="slider-value">{Math.round(percentage)}%</span>
+      </div>
+      <div className="range-number-row">
+        <input type="range" min="1" max="500" step="1" value={Math.min(500, Math.max(1, percentage))} onChange={(event) => onChange(Number(event.target.value) / 100)} />
+        <div className="number-input-wrap logo-scale-input-wrap">
+          <input
+            type="number"
+            min="0.01"
+            step="1"
+            value={draftValue}
+            onFocus={() => { isEditingRef.current = true; }}
+            onChange={(event) => setDraftValue(event.target.value)}
+            onBlur={(event) => { isEditingRef.current = false; commitValue(event.target.value); }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.preventDefault();
+                commitValue(event.currentTarget.value);
+                event.currentTarget.blur();
+              }
+            }}
+            aria-label="Tamaño libre de la imagen decorativa en porcentaje"
+          />
+          <span>%</span>
+        </div>
+      </div>
+      <span className="helper-text">Sin límite máximo: escribí el porcentaje que necesites.</span>
+    </div>
+  );
+};
+
 const FORMAT_SUFFIX = { '4:5': '45', FEED: 'FEED', STORY: 'STORY' };
 const BG_POSITION_PAD_LIMIT = 3000;
 
@@ -273,6 +324,23 @@ const BrandLogoPositionControls = ({ formatKey, label, settings, updateSettings 
   );
 };
 
+const FreeImagePositionControls = ({ formatKey, label, settings, updateSettings }) => {
+  const suffix = FORMAT_SUFFIX[formatKey];
+  const offsetX = settings[`freeImageOffsetX_${suffix}`] ?? 0;
+  const offsetY = settings[`freeImageOffsetY_${suffix}`] ?? 0;
+
+  return (
+    <div className="bg-position-controls">
+      <span className="position-controls-label">{label}</span>
+      <NumericRangeControl label="Posición X" value={offsetX} min={-10000} max={10000} unit=" px" onChange={(nextValue) => updateSettings({ [`freeImageOffsetX_${suffix}`]: nextValue })} />
+      <NumericRangeControl label="Posición Y" value={offsetY} min={-10000} max={10000} unit=" px" className="mt-3" onChange={(nextValue) => updateSettings({ [`freeImageOffsetY_${suffix}`]: nextValue })} />
+      <button type="button" className="position-reset-button mt-2" onClick={() => updateSettings({ [`freeImageOffsetX_${suffix}`]: 0, [`freeImageOffsetY_${suffix}`]: 0 })}>
+        <RotateCcw size={13} /> Centrar
+      </button>
+    </div>
+  );
+};
+
 const CreativeStackPositionControls = ({ formatKey, label, settings, updateSettings }) => {
   const suffix = FORMAT_SUFFIX[formatKey];
   const offsetY = settings[`creativeStackOffsetY_${suffix}`] ?? 0;
@@ -296,12 +364,14 @@ export const ImageUploader = ({
   settings,
   updateSettings,
   brandLogos,
-  onAddCustomBrand
+  onAddCustomBrand,
+  onDeleteCustomBrand
 }) => {
   const fileInputRef45 = useRef(null);
   const fileInputRefFeed = useRef(null);
   const fileInputRefStory = useRef(null);
   const brandInputRef = useRef(null);
+  const freeImageInputRef = useRef(null);
   const dragDepthRef = useRef({});
   const [activeDropZone, setActiveDropZone] = useState(null);
 
@@ -356,6 +426,27 @@ export const ImageUploader = ({
       onAddCustomBrand(newBrand);
       updateSettings({ selectedBrandId: newBrand.id });
     };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFreeImageUpload = (file) => {
+    if (!file) return;
+    if (!isImageFile(file)) {
+      alert('El archivo seleccionado no es una imagen compatible.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => updateSettings({
+      freeImageUrl: event.target.result,
+      showFreeImage: true,
+      freeImageScale: 1,
+      freeImageOffsetX_45: 0,
+      freeImageOffsetY_45: 0,
+      freeImageOffsetX_FEED: 0,
+      freeImageOffsetY_FEED: 0,
+      freeImageOffsetX_STORY: 0,
+      freeImageOffsetY_STORY: 0
+    });
     reader.readAsDataURL(file);
   };
 
@@ -422,17 +513,17 @@ export const ImageUploader = ({
           {brandLogos.map((brand) => {
             const isSelected = settings.selectedBrandId === brand.id;
             return (
-              <button
-                key={brand.id}
-                type="button"
-                className={`brand-card ${isSelected ? 'selected' : ''}`}
-                onClick={() => updateSettings({ selectedBrandId: brand.id })}
-              >
-                <div className="brand-card-preview">
-                  <img src={brand.url} alt={brand.name} />
-                </div>
-                <span className="brand-card-name">{brand.name}</span>
-              </button>
+              <div key={brand.id} className={`brand-card ${isSelected ? 'selected' : ''}`}>
+                <button type="button" className="brand-card-select" onClick={() => updateSettings({ selectedBrandId: brand.id })}>
+                  <div className="brand-card-preview"><img src={brand.url} alt={brand.name} /></div>
+                  <span className="brand-card-name">{brand.name}</span>
+                </button>
+                {!brand.isPreset && (
+                  <button type="button" className="brand-card-delete" onClick={() => onDeleteCustomBrand(brand.id)} title={`Eliminar ${brand.name}`} aria-label={`Eliminar ${brand.name}`}>
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -493,6 +584,46 @@ export const ImageUploader = ({
           <BrandLogoPositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
         </AccordionCard>
 
+      </AccordionCard>
+
+      <AccordionCard
+        title="Imagen Libre / Detalle"
+        icon={<ImageIcon size={16} className="text-emerald-400" />}
+        className="control-group free-image-control-group mt-3"
+      >
+        <span className="helper-text">Cargá un sticker, sello o detalle y arrastralo directamente en cada formato. La posición se guarda por formato.</span>
+        <div className={`upload-drop-zone brand-upload-drop-zone mt-3 ${activeDropZone === 'free-image' ? 'is-dragging' : ''}`} {...getDropZoneProps('free-image', handleFreeImageUpload)}>
+          <input
+            type="file"
+            ref={freeImageInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={(event) => { handleFreeImageUpload(event.target.files[0]); event.target.value = ''; }}
+          />
+          <button type="button" className="btn-upload-brand" onClick={() => freeImageInputRef.current?.click()}>
+            <Plus size={16} /><span>{settings.freeImageUrl ? 'Reemplazar imagen libre' : 'Agregar imagen libre'}</span>
+          </button>
+          <span className="drop-zone-hint">o arrastrá una imagen acá</span>
+        </div>
+
+        {settings.freeImageUrl && (
+          <>
+            <div className="free-image-preview-row">
+              <img src={settings.freeImageUrl} alt="Detalle cargado" />
+              <label className="checkbox-label" onClick={() => updateSettings({ showFreeImage: settings.showFreeImage === false })}>
+                {settings.showFreeImage !== false ? <CheckSquare size={18} className="text-emerald-400" /> : <Square size={18} className="text-gray-500" />}
+                <span>Mostrar</span>
+              </label>
+              <button type="button" className="btn-danger-compact" onClick={() => updateSettings({ freeImageUrl: null })}><Trash2 size={14} /> Quitar</button>
+            </div>
+            <FreeImageScaleControl value={settings.freeImageScale} onChange={(freeImageScale) => updateSettings({ freeImageScale })} />
+            <AccordionCard title="Posición de la Imagen Libre" icon={<Move size={16} className="text-emerald-400" />} className="mt-3">
+              <FreeImagePositionControls formatKey="4:5" label="Formato 4:5 · 1080 × 1350" settings={settings} updateSettings={updateSettings} />
+              <FreeImagePositionControls formatKey="FEED" label="Formato FEED · 1200 × 1200" settings={settings} updateSettings={updateSettings} />
+              <FreeImagePositionControls formatKey="STORY" label="Formato STORY · 1080 × 1920" settings={settings} updateSettings={updateSettings} />
+            </AccordionCard>
+          </>
+        )}
       </AccordionCard>
 
       <AccordionCard

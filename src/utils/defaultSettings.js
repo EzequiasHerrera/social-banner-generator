@@ -120,6 +120,17 @@ export const DEFAULT_SETTINGS = {
   brandLogoOffsetX_STORY: 0,
   brandLogoOffsetY_STORY: 0,
 
+  // Imagen decorativa libre (sticker, sello, textura o detalle adicional)
+  freeImageUrl: null,
+  showFreeImage: true,
+  freeImageScale: 1,
+  freeImageOffsetX_45: 0,
+  freeImageOffsetY_45: 0,
+  freeImageOffsetX_FEED: 0,
+  freeImageOffsetY_FEED: 0,
+  freeImageOffsetX_STORY: 0,
+  freeImageOffsetY_STORY: 0,
+
   // Desplazamiento vertical del conjunto: logo de marca + título + placa/precio
   creativeStackOffsetY_45: 0,
   creativeStackOffsetY_FEED: 0,
@@ -157,6 +168,9 @@ export const DEFAULT_SETTINGS = {
 
   // Imágenes de Fondo y Sincronización
   syncBackgrounds: true,
+  // La visualización y la exportación se eligen de forma independiente.
+  visibleFormats: { '4:5': true, FEED: true, STORY: true },
+  exportFormats: { '4:5': true, FEED: true, STORY: true },
   backgrounds: {
     '4:5': DEFAULT_BACKGROUND_DARK,
     'FEED': DEFAULT_BACKGROUND_DARK,

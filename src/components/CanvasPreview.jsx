@@ -3,7 +3,6 @@ import { BannerCanvas } from './BannerCanvas';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 export const CanvasPreview = ({
-  activeView,
   settings,
   brandLogos,
   onExportSingle,
@@ -15,9 +14,9 @@ export const CanvasPreview = ({
   const handleZoomOut = () => setZoomLevel(prev => Math.max(prev - 0.05, 0.15));
   const handleZoomReset = () => setZoomLevel(0.28);
 
-  const formatsToDisplay = activeView === 'ALL' 
-    ? ['4:5', 'FEED', 'STORY'] 
-    : [activeView];
+  const formatsToDisplay = ['4:5', 'FEED', 'STORY'].filter(
+    formatKey => settings.visibleFormats?.[formatKey] !== false
+  );
 
   return (
     <main className="workspace-container">
@@ -25,7 +24,9 @@ export const CanvasPreview = ({
       <div className="workspace-toolbar">
         <div className="workspace-info">
           <span className="info-badge">
-            {activeView === 'ALL' ? 'Vista Multicanvas (3 Formatos)' : `Formato ${activeView}`}
+            {formatsToDisplay.length > 0
+              ? `Vista: ${formatsToDisplay.join(' · ')}`
+              : 'No hay formatos seleccionados para ver'}
           </span>
         </div>
 
@@ -44,7 +45,10 @@ export const CanvasPreview = ({
       </div>
 
       {/* Grid o Canvas Individual */}
-      <div className={`workspace-grid ${activeView === 'ALL' ? 'grid-mode-all' : 'grid-mode-single'}`}>
+      <div className={`workspace-grid ${formatsToDisplay.length > 1 ? 'grid-mode-all' : 'grid-mode-single'}`}>
+        {formatsToDisplay.length === 0 && (
+          <div className="empty-format-state">Activá al menos un formato en “Ver” para mostrar su vista previa.</div>
+        )}
         {formatsToDisplay.map((formatKey) => (
           <BannerCanvas
             key={formatKey}

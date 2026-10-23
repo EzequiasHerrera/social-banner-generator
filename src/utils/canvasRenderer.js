@@ -290,6 +290,13 @@ function getBrandLogoOffset(settings, formatKey, axis) {
   return Number.isFinite(value) ? value : 0;
 }
 
+function getFreeImageOffset(settings, formatKey, axis) {
+  const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
+  const suffix = keyMap[formatKey] || '45';
+  const value = Number(settings[`freeImageOffset${axis}_${suffix}`]);
+  return Number.isFinite(value) ? value : 0;
+}
+
 function getCreativeStackOffsetY(settings, formatKey) {
   const keyMap = { '4:5': '45', 'FEED': 'FEED', 'STORY': 'STORY' };
   const suffix = keyMap[formatKey] || '45';
@@ -616,12 +623,9 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     }
 
     const priceGroupWidth = priceWidth + (settings.showDesde ? desdeWidth + desdeGap : 0);
-    const priceHorizontalPadding = Math.round(24 * gScale);
-    const groupStartX = contentAlignment === 'CENTER'
-      ? badgeX + ((badgeW - priceGroupWidth) / 2)
-      : contentAlignment === 'RIGHT'
-        ? badgeX + badgeW - priceHorizontalPadding - priceGroupWidth
-        : badgeX + priceHorizontalPadding;
+    // El contenido del rectángulo de precio siempre queda centrado dentro de
+    // la placa. La alineación elegida solo mueve la placa y alinea el título.
+    const groupStartX = badgeX + ((badgeW - priceGroupWidth) / 2);
 
     if (settings.showDesde) {
       ctx.textBaseline = 'alphabetic';
@@ -834,9 +838,32 @@ export const renderBannerToCanvas = async (canvas, formatKey, settings, brandLog
     drawHeader(safeHeaderY);
   }
 
+  // -------------------------------------------------------------
+  // CAPA 5: Imagen decorativa libre. Se dibuja al final para que funcione
+  // como sticker/detalle y pueda colocarse sobre cualquier elemento.
+  // -------------------------------------------------------------
+  let freeImageBounds = null;
+  if (settings.showFreeImage !== false && settings.freeImageUrl) {
+    const freeImage = await loadImage(settings.freeImageUrl);
+    if (freeImage) {
+      const configuredScale = Number(settings.freeImageScale);
+      const freeScale = Number.isFinite(configuredScale) && configuredScale > 0
+        ? configuredScale
+        : 1;
+      const targetH = 240 * freeScale;
+      const targetW = (freeImage.width / freeImage.height) * targetH;
+      const freeX = ((canvas.width - targetW) / 2) + getFreeImageOffset(settings, formatKey, 'X');
+      const freeY = ((canvas.height - targetH) / 2) + getFreeImageOffset(settings, formatKey, 'Y');
+
+      freeImageBounds = { x: freeX, y: freeY, width: targetW, height: targetH };
+      ctx.drawImage(freeImage, freeX, freeY, targetW, targetH);
+    }
+  }
+
   const hitPadding = Math.round(24 * gScale);
   return {
     brandLogoBounds,
+    freeImageBounds,
     creativeStackBounds: {
       x: creativeStackMinX - hitPadding,
       y: creativeStackMinY - hitPadding,

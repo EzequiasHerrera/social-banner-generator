@@ -50,10 +50,23 @@ export const saveCustomBrand = (newBrand) => {
   try {
     const current = loadCustomBrands();
     const updated = [newBrand, ...current];
-    localStorage.setItem(BRANDS_KEY, JSON.stringify(updated));
+    localStorage.setItem(BRANDS_KEY, JSON.stringify(updated.filter(brand => !brand.isPreset)));
     return updated;
   } catch (err) {
     console.warn('Error guardando marca personalizada:', err);
+    return loadCustomBrands();
+  }
+};
+
+export const deleteCustomBrand = (brandId) => {
+  try {
+    const updated = loadCustomBrands().filter(
+      brand => brand.isPreset || brand.id !== brandId
+    );
+    localStorage.setItem(BRANDS_KEY, JSON.stringify(updated.filter(brand => !brand.isPreset)));
+    return updated;
+  } catch (err) {
+    console.warn('Error eliminando marca personalizada:', err);
     return loadCustomBrands();
   }
 };

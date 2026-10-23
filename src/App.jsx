@@ -9,6 +9,7 @@ import {
   saveSettingsToStorage, 
   loadCustomBrands, 
   saveCustomBrand,
+  deleteCustomBrand,
   clearSavedSettings 
 } from './utils/storage';
 
@@ -17,7 +18,6 @@ import { exportSingleBanner, exportAllBannersZip } from './utils/exportUtils';
 export function App() {
   const [settings, setSettings] = useState(() => loadSavedSettings());
   const [brandLogos, setBrandLogos] = useState(() => loadCustomBrands());
-  const [activeView, setActiveView] = useState('ALL'); // 'ALL', '4:5', 'FEED', 'STORY'
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
 
@@ -40,6 +40,18 @@ export function App() {
     setBrandLogos(updatedList);
   };
 
+  const handleDeleteCustomBrand = (brandId) => {
+    const brand = brandLogos.find(item => item.id === brandId);
+    if (!brand || brand.isPreset) return;
+    if (!window.confirm(`¿Eliminar la marca personalizada “${brand.name}”?`)) return;
+
+    const updatedList = deleteCustomBrand(brandId);
+    setBrandLogos(updatedList);
+    if (settings.selectedBrandId === brandId) {
+      updateSettings({ selectedBrandId: 'silcook' });
+    }
+  };
+
   // Botón "Restablecer a Default"
   const handleResetDefaults = () => {
     if (window.confirm('¿Deseas restablecer todas las configuraciones, fuentes y tamaños a los valores predeterminados?')) {
@@ -55,6 +67,13 @@ export function App() {
 
   // Exportar todas las placas (.ZIP)
   const handleExportAll = async () => {
+    const selectedFormats = Object.entries(settings.exportFormats || {})
+      .filter(([, selected]) => selected)
+      .map(([format]) => format);
+    if (selectedFormats.length === 0) {
+      alert('Seleccioná al menos un formato para exportar.');
+      return;
+    }
     setIsExporting(true);
     try {
       await exportAllBannersZip(settings, brandLogos, (msg) => {
@@ -73,8 +92,8 @@ export function App() {
     <div className="app-container">
       {/* Barra de Encabezado Superior */}
       <Header
-        activeView={activeView}
-        setActiveView={setActiveView}
+        settings={settings}
+        updateSettings={updateSettings}
         onExportAll={handleExportAll}
         onResetDefaults={handleResetDefaults}
         isExporting={isExporting}
@@ -98,10 +117,10 @@ export function App() {
           updateSettings={updateSettings}
           brandLogos={brandLogos}
           onAddCustomBrand={handleAddCustomBrand}
+          onDeleteCustomBrand={handleDeleteCustomBrand}
         />
 
         <CanvasPreview
-          activeView={activeView}
           settings={settings}
           brandLogos={brandLogos}
           onExportSingle={handleExportSingle}

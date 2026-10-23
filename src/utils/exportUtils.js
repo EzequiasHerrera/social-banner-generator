@@ -24,10 +24,13 @@ export const exportSingleBanner = async (formatKey, settings, brandLogosList) =>
   }, 'image/png', 1.0);
 };
 
-// Exportación masiva de los 3 formatos en un archivo .ZIP
+// Exportación masiva de los formatos elegidos en un archivo .ZIP
 export const exportAllBannersZip = async (settings, brandLogosList, onProgress) => {
   const zip = new JSZip();
-  const formats = Object.keys(CANVAS_SPECIFICATIONS);
+  const formats = Object.keys(CANVAS_SPECIFICATIONS).filter(
+    key => settings.exportFormats?.[key] !== false
+  );
+  if (formats.length === 0) throw new Error('No hay formatos seleccionados para exportar.');
   
   const cleanProductName = (settings.productName || 'PRODUCTO')
     .toLowerCase()
@@ -60,7 +63,7 @@ export const exportAllBannersZip = async (settings, brandLogosList, onProgress) 
       spread: 70,
       origin: { y: 0.6 }
     });
-  } catch (e) {
+  } catch {
     // Ignorar si confetti falla
   }
 };

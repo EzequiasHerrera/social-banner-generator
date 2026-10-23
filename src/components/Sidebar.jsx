@@ -7,7 +7,8 @@ export const Sidebar = ({
   settings,
   updateSettings,
   brandLogos,
-  onAddCustomBrand
+  onAddCustomBrand,
+  onDeleteCustomBrand
 }) => {
   const [activeTab, setActiveTab] = useState('CONTENT'); // 'CONTENT', 'BRAND_BG', 'STYLE'
 
@@ -327,6 +328,7 @@ export const Sidebar = ({
               updateSettings={updateSettings}
               brandLogos={brandLogos}
               onAddCustomBrand={onAddCustomBrand}
+              onDeleteCustomBrand={onDeleteCustomBrand}
             />
           </div>
         )}

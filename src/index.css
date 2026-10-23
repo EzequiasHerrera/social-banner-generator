@@ -260,6 +260,41 @@ body {
   gap: 4px;
 }
 
+.independent-format-selectors {
+  gap: 10px;
+  padding: 5px 8px;
+}
+
+.format-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.format-selector-group + .format-selector-group {
+  padding-left: 9px;
+  border-left: 1px solid var(--border-color);
+}
+
+.format-selector-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.format-selector-buttons {
+  display: flex;
+  gap: 3px;
+}
+
+.independent-format-selectors .view-btn {
+  padding: 5px 8px;
+}
+
 .view-btn {
   background: transparent;
   border: none;
@@ -596,13 +631,81 @@ body {
   background-color: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  padding: 8px;
+  padding: 0;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
   transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.brand-card-select {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-card-delete {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(248, 113, 113, 0.5);
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.9);
+  color: #f87171;
+  cursor: pointer;
+}
+
+.brand-card-delete:hover { background: rgba(127, 29, 29, 0.92); color: #fff; }
+
+.free-image-preview-row {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: var(--bg-panel);
+}
+
+.free-image-preview-row img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.free-image-preview-row .checkbox-label { margin: 0; flex: 1; }
+
+.btn-danger-compact {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 8px;
+  border: 1px solid rgba(248, 113, 113, 0.45);
+  border-radius: 6px;
+  background: rgba(127, 29, 29, 0.25);
+  color: #fca5a5;
+  cursor: pointer;
 }
 
 .brand-card:hover {
@@ -992,6 +1095,15 @@ body {
   flex-direction: row;
 }
 
+.empty-format-state {
+  margin: auto;
+  padding: 2rem;
+  border: 1px dashed var(--border-color);
+  border-radius: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
 /* CANVAS CARD WRAPPER */
 .canvas-wrapper-card {
   background-color: var(--bg-panel);
@@ -1071,6 +1183,10 @@ body {
 }
 
 .rendered-banner-canvas.is-dragging-logo {
+  cursor: move;
+}
+
+.rendered-banner-canvas.is-dragging-free-image {
   cursor: move;
 }
 

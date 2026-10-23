@@ -34,6 +34,8 @@ export const BannerCanvas = ({
   const creativeStackOffsetYKey = `creativeStackOffsetY_${suffix}`;
   const brandLogoOffsetXKey = `brandLogoOffsetX_${suffix}`;
   const brandLogoOffsetYKey = `brandLogoOffsetY_${suffix}`;
+  const freeImageOffsetXKey = `freeImageOffsetX_${suffix}`;
+  const freeImageOffsetYKey = `freeImageOffsetY_${suffix}`;
 
   useEffect(() => {
     if (!canvasRef.current) return undefined;
@@ -89,6 +91,12 @@ export const BannerCanvas = ({
     const canvasY = (event.clientY - bounds.top) * (canvas.height / bounds.height);
     const stackBounds = renderMetadataRef.current?.creativeStackBounds;
     const logoBounds = renderMetadataRef.current?.brandLogoBounds;
+    const freeImageBounds = renderMetadataRef.current?.freeImageBounds;
+    const isInsideFreeImage = Boolean(
+      settings.showFreeImage !== false && settings.freeImageUrl && freeImageBounds &&
+      canvasX >= freeImageBounds.x && canvasX <= freeImageBounds.x + freeImageBounds.width &&
+      canvasY >= freeImageBounds.y && canvasY <= freeImageBounds.y + freeImageBounds.height
+    );
     const isInsideLogo = Boolean(
       settings.showBrandLogo !== false &&
       logoBounds &&
@@ -105,7 +113,7 @@ export const BannerCanvas = ({
       canvasY <= stackBounds.y + stackBounds.height
     );
 
-    if (!isInsideLogo && !isInsideStack && !settings.backgrounds?.[formatKey]) return;
+    if (!isInsideFreeImage && !isInsideLogo && !isInsideStack && !settings.backgrounds?.[formatKey]) return;
 
     event.preventDefault();
     canvas.setPointerCapture(event.pointerId);
@@ -120,11 +128,13 @@ export const BannerCanvas = ({
       startBrandLogoOffsetY: Number(settings[brandLogoOffsetYKey]) || 0,
       startBrandLogoCenterX: logoBounds ? logoBounds.x + (logoBounds.width / 2) : null,
       startBrandLogoCenterY: logoBounds ? logoBounds.y + (logoBounds.height / 2) : null,
+      startFreeImageOffsetX: Number(settings[freeImageOffsetXKey]) || 0,
+      startFreeImageOffsetY: Number(settings[freeImageOffsetYKey]) || 0,
       canvasPixelsPerClientX: canvas.width / bounds.width,
       canvasPixelsPerClientY: canvas.height / bounds.height,
-      mode: isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND')
+      mode: isInsideFreeImage ? 'FREE_IMAGE' : (isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND'))
     };
-    setDragMode(isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND'));
+    setDragMode(isInsideFreeImage ? 'FREE_IMAGE' : (isInsideLogo ? 'LOGO' : (isInsideStack ? 'STACK' : 'BACKGROUND')));
   };
 
   const handlePointerMove = (event) => {
@@ -132,7 +142,16 @@ export const BannerCanvas = ({
     if (!drag || drag.pointerId !== event.pointerId) return;
 
     event.preventDefault();
-    if (drag.mode === 'LOGO') {
+    if (drag.mode === 'FREE_IMAGE') {
+      pendingOffsetsRef.current = {
+        [freeImageOffsetXKey]: Math.round(
+          drag.startFreeImageOffsetX + (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX
+        ),
+        [freeImageOffsetYKey]: Math.round(
+          drag.startFreeImageOffsetY + (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY
+        )
+      };
+    } else if (drag.mode === 'LOGO') {
       let deltaX = (event.clientX - drag.startClientX) * drag.canvasPixelsPerClientX;
       let deltaY = (event.clientY - drag.startClientY) * drag.canvasPixelsPerClientY;
       const verticalThreshold = LOGO_SNAP_THRESHOLD_CLIENT_PX * drag.canvasPixelsPerClientX;
@@ -231,12 +250,12 @@ export const BannerCanvas = ({
             ref={canvasRef}
             width={spec.width}
             height={spec.height}
-            className={`rendered-banner-canvas background-draggable ${dragMode === 'BACKGROUND' ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''} ${dragMode === 'LOGO' ? 'is-dragging-logo' : ''}`}
+            className={`rendered-banner-canvas background-draggable ${dragMode === 'BACKGROUND' ? 'is-dragging-background' : ''} ${dragMode === 'STACK' ? 'is-dragging-stack' : ''} ${dragMode === 'LOGO' ? 'is-dragging-logo' : ''} ${dragMode === 'FREE_IMAGE' ? 'is-dragging-free-image' : ''}`}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={finishBackgroundDrag}
             onPointerCancel={finishBackgroundDrag}
-            title="Arrastrá el logo libremente, el conjunto creativo en vertical o el fondo para reencuadrarlo"
+            title="Arrastrá la imagen libre, el logo, el conjunto creativo o el fondo para reencuadrarlo"
           />
           {snapGuides.vertical && (
             <span className="logo-snap-guide logo-snap-guide-vertical" aria-hidden="true" />
@@ -248,7 +267,7 @@ export const BannerCanvas = ({
       </div>
 
       <div className="canvas-card-footer">
-        <span className="resolution-tag">Resolución Exacta: {spec.width} × {spec.height} px · Logo: arrastre libre X/Y · Título/placa: arrastre vertical · Fondo: reencuadre libre</span>
+        <span className="resolution-tag">Resolución Exacta: {spec.width} × {spec.height} px · Imagen libre y logo: arrastre X/Y · Título/placa: arrastre vertical · Fondo: reencuadre libre</span>
       </div>
     </div>
   );
